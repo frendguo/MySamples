@@ -11,7 +11,7 @@ void DriverUnload(
 extern "C"
 NTSTATUS
 DriverEntry(_In_ PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) {
-	UNREFERENCED_PARAMETER(DriverObject);
+	//UNREFERENCED_PARAMETER(DriverObject);
 	UNREFERENCED_PARAMETER(RegistryPath);
 
 	DriverObject->DriverUnload = DriverUnload;
