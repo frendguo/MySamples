@@ -24,9 +24,15 @@ DriverEntry(_In_ PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
+	// RtlCopyUnicodeString 不会修改 MaximumLength，所以需要手动修改。
 	g_RegisterPath.MaximumLength = RegisterPath->Length;
-	// todo: 怎么确保copy一定是成功的？
+	
 	RtlCopyUnicodeString(&g_RegisterPath, (PCUNICODE_STRING)RegisterPath);
+
+	if (g_RegisterPath.Length != RegisterPath->Length) {
+		KdPrint(("Failed to copy registerPath\n"));
+		return STATUS_ABANDONED;
+	}
 
 	KdPrint(("Copied register path: %wZ\n", &g_RegisterPath));
 	return STATUS_SUCCESS;
