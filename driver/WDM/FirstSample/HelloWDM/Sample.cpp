@@ -19,7 +19,7 @@ DriverEntry(_In_ PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) {
 	RTL_OSVERSIONINFOW OsVersionInfo;
 	PRTL_OSVERSIONINFOW POsVersionInfo = &OsVersionInfo;
 	
-	NTSTATUS status = RtlGetVersion(_Out_ POsVersionInfo);
+	NTSTATUS status = RtlGetVersion(POsVersionInfo);
 	if (NT_SUCCESS(status)) {
 		KdPrint(("OS Version is %d.%d.%d\n",
 			POsVersionInfo->dwMajorVersion, POsVersionInfo->dwMinorVersion, POsVersionInfo->dwBuildNumber));
