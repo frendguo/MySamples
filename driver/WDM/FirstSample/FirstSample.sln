@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloWDM", "HelloWDM\HelloW
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AllocMemory", "AllocMemory\AllocMemory.vcxproj", "{EB35867F-B2DC-4E76-A92C-50A5D0836023}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PriorityBooster", "PriorityBooster\PriorityBooster.vcxproj", "{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -39,6 +41,18 @@ Global
 		{EB35867F-B2DC-4E76-A92C-50A5D0836023}.Release|x64.ActiveCfg = Release|x64
 		{EB35867F-B2DC-4E76-A92C-50A5D0836023}.Release|x64.Build.0 = Release|x64
 		{EB35867F-B2DC-4E76-A92C-50A5D0836023}.Release|x64.Deploy.0 = Release|x64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Debug|ARM64.Build.0 = Debug|ARM64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Debug|x64.ActiveCfg = Debug|x64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Debug|x64.Build.0 = Debug|x64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Debug|x64.Deploy.0 = Debug|x64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Release|ARM64.ActiveCfg = Release|ARM64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Release|ARM64.Build.0 = Release|ARM64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Release|ARM64.Deploy.0 = Release|ARM64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Release|x64.ActiveCfg = Release|x64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Release|x64.Build.0 = Release|x64
+		{A80E6D9A-3A8F-4608-8BC3-06BBFEAA1521}.Release|x64.Deploy.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
