@@ -1,9 +1,7 @@
-#pragma once
-#include <ntddk.h>
+#define PrioirtyBoosterCommon
+#ifdef PrioirtyBoosterCommon
 
-
-#define CTL_CODE( DeviceType, Function, Method, Access ) ( \
-	((DeviceType) << 16) | ((Access) << 14) | ((Function) << 12) | (Method) )
+#pragma warning(disable: 4047 4013)
 
 #define PRIORITY_BOOSTER_DEVICE 0x8000
 
@@ -12,6 +10,7 @@
 
 struct ThreadData
 {
-	ULONG ThreadId;
+	unsigned long ThreadId;
 	int Priority;
 };
+#endif // PrioirtyBoosterCommon
