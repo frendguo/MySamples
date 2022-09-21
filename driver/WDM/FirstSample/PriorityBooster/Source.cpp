@@ -94,22 +94,29 @@ PriorityBoosterDeviceControl(
 			break;
 		}
 
-		if (data->Priority < 1 || data->Priority > 31) {
-			status = STATUS_INVALID_PARAMETER;
-			break;
+		__try {
+			if (data->Priority < 1 || data->Priority > 31) {
+				status = STATUS_INVALID_PARAMETER;
+				break;
+			}
+
+			PETHREAD thread;
+			status = PsLookupThreadByThreadId(ULongToHandle(data->ThreadId), &thread);
+			if (!NT_SUCCESS(status)) {
+				status = STATUS_INVALID_PARAMETER;
+				break;
+			}
+
+			KeSetPriorityThread((PKTHREAD)thread, data->Priority);
+			ObDereferenceObject(thread);
+
+			KdPrint(("Thread priority change for d% to d% succeeded!\n", data->ThreadId, data->Priority));
 		}
-
-		PETHREAD thread;
-		status = PsLookupThreadByThreadId(ULongToHandle(data->ThreadId), &thread);
-		if (!NT_SUCCESS(status)) {
-			status = STATUS_INVALID_PARAMETER;
-			break;
+		__except (EXCEPTION_EXECUTE_HANDLER) {
+			// 可以获得具体异常
+			// auto exceptionCode = GetExceptionCode();
+			status = STATUS_ACCESS_VIOLATION;
 		}
-
-		KeSetPriorityThread((PKTHREAD)thread, data->Priority);
-		ObDereferenceObject(thread);
-
-		KdPrint(("Thread priority change for d% to d% succeeded!\n", data->ThreadId, data->Priority));
 		break;
 	}
 	default:
