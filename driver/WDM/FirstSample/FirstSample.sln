@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PriorityBooster", "Priority
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoosterClient", "BoosterClient\BoosterClient.vcxproj", "{7D556240-007F-4B8F-B949-E1FA5D92CF73}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Zero", "Zero\Zero.vcxproj", "{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -87,6 +89,24 @@ Global
 		{7D556240-007F-4B8F-B949-E1FA5D92CF73}.Release|x64.Build.0 = Release|x64
 		{7D556240-007F-4B8F-B949-E1FA5D92CF73}.Release|x86.ActiveCfg = Release|Win32
 		{7D556240-007F-4B8F-B949-E1FA5D92CF73}.Release|x86.Build.0 = Release|Win32
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|ARM64.Build.0 = Debug|ARM64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|x64.ActiveCfg = Debug|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|x64.Build.0 = Debug|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|x64.Deploy.0 = Debug|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|x86.ActiveCfg = Debug|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|x86.Build.0 = Debug|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Debug|x86.Deploy.0 = Debug|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|ARM64.ActiveCfg = Release|ARM64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|ARM64.Build.0 = Release|ARM64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|ARM64.Deploy.0 = Release|ARM64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|x64.ActiveCfg = Release|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|x64.Build.0 = Release|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|x64.Deploy.0 = Release|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|x86.ActiveCfg = Release|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|x86.Build.0 = Release|x64
+		{0F78D62A-9808-4FB2-9178-C74BA62F1EC8}.Release|x86.Deploy.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
