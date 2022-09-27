@@ -2,6 +2,29 @@
 
 #define DRIVER_PREFIX "ZERO: "
 
+NTSTATUS
+ZeroCreateClose(
+	_DEVICE_OBJECT* DeviceObject,
+	_IRP* Irp
+);
+
+NTSTATUS
+ZeroRead(
+	_DEVICE_OBJECT* DeviceObject,
+	_IRP* Irp
+);
+
+NTSTATUS
+ZeroWrite(
+	_DEVICE_OBJECT* DeviceObject,
+	_IRP* Irp
+);
+
+VOID ZeroUnload(_DRIVER_OBJECT* DriverObject);
+
+
+NTSTATUS CompleteIrp(PIRP Irp, NTSTATUS status = STATUS_SUCCESS, ULONG_PTR info = 0);
+
 // DriverEntry
 
 extern "C" NTSTATUS
@@ -53,7 +76,6 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 
 VOID ZeroUnload(_DRIVER_OBJECT* DriverObject) {
 	UNREFERENCED_PARAMETER(DriverObject);
-
 }
 
 NTSTATUS
@@ -61,6 +83,8 @@ ZeroCreateClose(
 	_DEVICE_OBJECT* DeviceObject,
 	_IRP* Irp
 ) {
+	UNREFERENCED_PARAMETER(DeviceObject);
+
 	return CompleteIrp(Irp);
 }
 
@@ -69,6 +93,8 @@ ZeroRead(
 	_DEVICE_OBJECT* DeviceObject,
 	_IRP* Irp
 ) {
+	UNREFERENCED_PARAMETER(DeviceObject);
+
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
 	auto len = stack->Parameters.Read.Length;
 	if (len == 0) {
@@ -89,6 +115,8 @@ ZeroWrite(
 	_DEVICE_OBJECT* DeviceObject,
 	_IRP* Irp
 ) {
+	UNREFERENCED_PARAMETER(DeviceObject);
+
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
 	auto len = stack->Parameters.Write.Length;
 
@@ -97,7 +125,7 @@ ZeroWrite(
 
 #pragma region Helper
 
-NTSTATUS CompleteIrp(PIRP Irp, NTSTATUS status = STATUS_SUCCESS, ULONG_PTR info = 0) {
+NTSTATUS CompleteIrp(PIRP Irp, NTSTATUS status, ULONG_PTR info) {
 	Irp->IoStatus.Status = status;
 	Irp->IoStatus.Information = info;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
