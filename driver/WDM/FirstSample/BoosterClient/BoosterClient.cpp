@@ -23,7 +23,7 @@ int main(int argc, const char* argv[]) {
 		return Error("Failed to open device.");
 	}
 
-	ThreadData data;
+	ThreadData data{};
 	data.ThreadId = atoi(argv[1]);
 	data.Priority = atoi(argv[2]);
 

@@ -78,7 +78,7 @@ PriorityBoosterDeviceControl(
 
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
 	auto status = STATUS_SUCCESS;
-
+	
 	switch (stack->Parameters.DeviceIoControl.IoControlCode)
 	{
 	case IOCTL_PRIORITY_BOOSTER_SET_PRIORITY:
