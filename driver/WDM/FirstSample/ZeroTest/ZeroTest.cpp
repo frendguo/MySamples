@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <errhandlingapi.h>
 #include <fileapi.h>
+#include "../Zero/ZeroCommon.h"
 
 int Error(const char* msg) {
     printf("s%: Error=d%\n", msg, GetLastError());
@@ -58,6 +59,15 @@ int main()
     if (bytes != sizeof(buffer2)) {
         printf("Wrong byte count.\n");
     }
+
+    ZeroStates states{};
+    DWORD reVal = 0;
+    res = DeviceIoControl(hDevice, IOCTL_ZERO_GET_STATE, nullptr, 0, &states, sizeof(states), &reVal, nullptr);
+    if (!res) {
+        return ERROR("Wrong get zero states.");
+    }
+
+    printf("Read count is %d, Write count is %d. \n", states.TotalRead, states.TotalWrite);
 
     CloseHandle(hDevice);
 }

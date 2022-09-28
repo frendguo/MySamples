@@ -118,6 +118,8 @@ ZeroDeviceControl(
 	_DEVICE_OBJECT* DeviceObject,
 	_IRP* Irp
 ) {
+	UNREFERENCED_PARAMETER(DeviceObject);
+
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
 	auto& ioControl = stack->Parameters.DeviceIoControl;
 	if (ioControl.IoControlCode != IOCTL_ZERO_GET_STATE) {
