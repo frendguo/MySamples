@@ -1,12 +1,16 @@
 #include "pch.h"
+#include "ZeroCommon.h"
 
 #define DRIVER_PREFIX "ZERO: "
 
-DRIVER_DISPATCH ZeroCreateClose, ZeroRead, ZeroWrite;
+DRIVER_DISPATCH ZeroCreateClose, ZeroRead, ZeroWrite, ZeroDeviceControl;
 
 VOID ZeroUnload(_DRIVER_OBJECT* DriverObject);
 
 NTSTATUS CompleteIrp(PIRP Irp, NTSTATUS status = STATUS_SUCCESS, ULONG_PTR info = 0);
+
+long long g_readTotal = 0;
+long long g_writeTotal = 0;
 
 // DriverEntry
 
@@ -22,6 +26,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 		DriverObject->MajorFunction[IRP_MJ_CLOSE] = ZeroCreateClose;
 	DriverObject->MajorFunction[IRP_MJ_READ] = ZeroRead;
 	DriverObject->MajorFunction[IRP_MJ_WRITE] = ZeroWrite;
+	DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = ZeroDeviceControl;
 
 	// 创建设备对象和符号链接
 	UNICODE_STRING devName = RTL_CONSTANT_STRING(L"\\Device\\Zero");
@@ -90,6 +95,7 @@ ZeroRead(
 	}
 
 	memset(buffer, 0, len);
+	g_readTotal += len;
 	return CompleteIrp(Irp, STATUS_SUCCESS, len);
 }
 
@@ -103,7 +109,30 @@ ZeroWrite(
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
 	auto len = stack->Parameters.Write.Length;
 
+	g_writeTotal += len;
 	return CompleteIrp(Irp, STATUS_SUCCESS, len);
+}
+
+NTSTATUS
+ZeroDeviceControl(
+	_DEVICE_OBJECT* DeviceObject,
+	_IRP* Irp
+) {
+	auto stack = IoGetCurrentIrpStackLocation(Irp);
+	auto& ioControl = stack->Parameters.DeviceIoControl;
+	if (ioControl.IoControlCode != IOCTL_ZERO_GET_STATE) {
+		return CompleteIrp(Irp, STATUS_INVALID_DEVICE_REQUEST);
+	}
+
+	if (ioControl.OutputBufferLength < sizeof(ZeroStates)) {
+		return CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL);
+	}
+
+	auto states = (ZeroStates*)Irp->AssociatedIrp.SystemBuffer;
+	states->TotalRead = g_readTotal;
+	states->TotalWrite = g_writeTotal;
+
+	return CompleteIrp(Irp, STATUS_SUCCESS, sizeof(ZeroStates));
 }
 
 #pragma region Helper
