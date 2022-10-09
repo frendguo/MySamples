@@ -36,5 +36,8 @@
     <ClInclude Include="FastMutex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="AutoLock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
