@@ -1,9 +1,13 @@
 #include "SysMon.h"
+#include "SysMonCommon.h"
+#include "AutoLock.h"
 
 Globals g_Globals;
 
 #define DRIVER_PREFIX "SYSMON: "
+#define DRIVER_TAG 'sysm'
 
+void PushItem(LIST_ENTRY* entry);
 void OnProcessNotify(HANDLE Process,
 	HANDLE ProcessId,
 	PPS_CREATE_NOTIFY_INFO CreateInfo);
@@ -15,7 +19,7 @@ PDRIVER_DISPATCH SysMonCreateClose, SysMonRead;
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 	UNREFERENCED_PARAMETER(RegisterPath);
-	
+
 	auto status = STATUS_SUCCESS;
 
 	// init g_Globals
@@ -79,12 +83,65 @@ void OnProcessNotify(HANDLE Process,
 	PPS_CREATE_NOTIFY_INFO CreateInfo) {
 	if (CreateInfo) {
 		// 进程创建
+		auto allocSize = sizeof(FullItem<ProcessCreateInfo>);
+		USHORT commandLineSize = CreateInfo->CommandLine->Length;
+		if (commandLineSize > 0) {
+			allocSize += commandLineSize;
+		}
 
+		auto info = (FullItem<ProcessCreateInfo>*)ExAllocatePoolWithTag(PagedPool, allocSize, DRIVER_TAG);
+		if (info == nullptr) {
+			KdPrint((DRIVER_PREFIX "failed allocation.\n"));
+			return;
+		}
+		auto& item = info->Data;
+
+		KeQuerySystemTimePrecise(&item.Time);
+		item.ProcessId = HandleToLong(ProcessId);
+		item.ParentProcessId = HandleToLong(CreateInfo->ParentProcessId);
+		item.Size = sizeof(ProcessCreateInfo) + commandLineSize;
+		item.Type = ItemType::ProcessCreate;
+		if (commandLineSize > 0) {
+			memcpy((UCHAR*)&item + sizeof(item), CreateInfo->CommandLine->Buffer, commandLineSize);
+			item.CommandLineLength = commandLineSize / sizeof(WCHAR);
+			item.CommandLineOffset = sizeof(item);
+		}
+		else {
+			item.CommandLineLength = 0;
+		}
+
+		PushItem(&info->Entry);
 	}
 	else {
 		// 进程退出
+		auto info = (FullItem<ProcessExitInfo>*)ExAllocatePoolWithTag(PagedPool, sizeof(FullItem<ProcessExitInfo>), DRIVER_TAG);
+		if (info == nullptr) {
+			KdPrint((DRIVER_PREFIX "failed allocation.\n"));
+			return;
+		}
 
+		auto& item = info->Data;
+		KeQuerySystemTimePrecise(&item.Time);
+		item.Type = ItemType::ProcessExit;
+		item.ProcessId = HandleToLong(ProcessId);
+		item.Size = sizeof(ProcessExitInfo);
+
+		PushItem(&info->Entry);
 	}
+}
+
+void PushItem(LIST_ENTRY* entry) {
+	AutoLock<FastMutex> lock(g_Globals.Mutex);
+
+	if (g_Globals.ItemCount > 1024) {
+		auto head = RemoveHeadList(&g_Globals.ItemsHeader);
+		g_Globals.ItemCount--;
+		auto item = CONTAINING_RECORD(head, FullItem<ItemHeader>, Entry);
+		ExFreePool(item);
+	}
+
+	InsertTailList(&g_Globals.ItemsHeader, entry);
+	g_Globals.ItemCount++;
 }
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
