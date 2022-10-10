@@ -146,12 +146,23 @@ void PushItem(LIST_ENTRY* entry) {
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
 	auto status = PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, true);
+	
+	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\??\\sysmon");
+	IoDeleteSymbolicLink(&symLink);
+	IoDeleteDevice(DriverObject->DeviceObject);
+
+	while (!IsListEmpty(&g_Globals.ItemsHeader))
+	{
+		auto entry = RemoveEntryList(&g_Globals.ItemsHeader);
+		ExFreePool(CONTAINING_RECORD(entry, FullItem<ItemHeader>, Entry));
+	}
 }
 
 NTSTATUS SysMonRead(
 	_DEVICE_OBJECT* DeviceObject,
 	_IRP* Irp
 ) {
+	UNREFERENCED_PARAMETER(DeviceObject);
 	auto status = STATUS_SUCCESS;
 
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
