@@ -14,7 +14,7 @@ void OnProcessNotify(HANDLE Process,
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject);
 
-PDRIVER_DISPATCH SysMonCreateClose, SysMonRead;
+DRIVER_DISPATCH SysMonCreateClose, SysMonRead;
 
 extern "C" NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
@@ -146,4 +146,57 @@ void PushItem(LIST_ENTRY* entry) {
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
 	auto status = PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, true);
+}
+
+NTSTATUS SysMonRead(
+	_DEVICE_OBJECT* DeviceObject,
+	_IRP* Irp
+) {
+	auto status = STATUS_SUCCESS;
+
+	auto stack = IoGetCurrentIrpStackLocation(Irp);
+	auto len = stack->Parameters.Read.Length;
+	auto count = 0;
+
+	NT_ASSERT(Irp->MdlAddress);
+
+	auto buffer = (UCHAR*)MmGetSystemAddressForMdlSafe(Irp->MdlAddress, NormalPagePriority);
+	if (!buffer) {
+		status = STATUS_INSUFFICIENT_RESOURCES;
+	}
+	else {
+		AutoLock<FastMutex> lock(g_Globals.Mutex);
+
+		while (true)
+		{
+			if (IsListEmpty(&g_Globals.ItemsHeader)) {
+				break;
+			}
+
+			auto entry = RemoveHeadList(&g_Globals.ItemsHeader);
+			// 通过成员来找结构的地址
+			auto info = CONTAINING_RECORD(entry, FullItem<ItemHeader>, Entry);
+			auto size = info->Data.Size;
+
+			if (len < size) {
+				// 缓冲区已经满了，把移除出来的 entry 
+				InsertHeadList(&g_Globals.ItemsHeader, entry);
+				break;
+			}
+
+			memcpy(buffer, &info->Data, size);
+			g_Globals.ItemCount--;
+			len -= size;
+			buffer += size;
+			count += size;
+
+			ExFreePool(info);
+		}
+	}
+	// 收尾
+	Irp->IoStatus.Status = status;
+	Irp->IoStatus.Information = count;
+	IoCompleteRequest(Irp, 0);
+
+	return status;
 }
