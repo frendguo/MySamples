@@ -1,5 +1,4 @@
 #include "FastMutex.h"
-#include <wdm.h>
 
 void FastMutex::Init() {
 	ExInitializeFastMutex(&_mutex);

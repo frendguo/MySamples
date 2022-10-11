@@ -37,7 +37,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 		// 1. 创建 DeviceObject
 		status = IoCreateDevice(DriverObject, 0, &devName, FILE_DEVICE_UNKNOWN, 0, true, &DeviceObject);
 		if (!NT_SUCCESS(status)) {
-			KdPrint((DRIVER_PREFIX "failed to create device (0x%08X)\n"), status);
+			KdPrint((DRIVER_PREFIX "failed to create device (0x%08X)\n", status));
 			break;
 		}
 		// 访问用户缓冲区采用直接IO的方式
@@ -81,6 +81,8 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 void OnProcessNotify(HANDLE Process,
 	HANDLE ProcessId,
 	PPS_CREATE_NOTIFY_INFO CreateInfo) {
+	UNREFERENCED_PARAMETER(Process);
+
 	if (CreateInfo) {
 		// 进程创建
 		auto allocSize = sizeof(FullItem<ProcessCreateInfo>);
@@ -89,7 +91,7 @@ void OnProcessNotify(HANDLE Process,
 			allocSize += commandLineSize;
 		}
 
-		auto info = (FullItem<ProcessCreateInfo>*)ExAllocatePoolWithTag(PagedPool, allocSize, DRIVER_TAG);
+		auto info = (FullItem<ProcessCreateInfo>*)ExAllocatePool2(POOL_FLAG_PAGED, allocSize, DRIVER_TAG);
 		if (info == nullptr) {
 			KdPrint((DRIVER_PREFIX "failed allocation.\n"));
 			return;
@@ -114,7 +116,7 @@ void OnProcessNotify(HANDLE Process,
 	}
 	else {
 		// 进程退出
-		auto info = (FullItem<ProcessExitInfo>*)ExAllocatePoolWithTag(PagedPool, sizeof(FullItem<ProcessExitInfo>), DRIVER_TAG);
+		auto info = (FullItem<ProcessExitInfo>*)ExAllocatePool2(POOL_FLAG_PAGED, sizeof(FullItem<ProcessExitInfo>), DRIVER_TAG);
 		if (info == nullptr) {
 			KdPrint((DRIVER_PREFIX "failed allocation.\n"));
 			return;
@@ -145,7 +147,7 @@ void PushItem(LIST_ENTRY* entry) {
 }
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
-	auto status = PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, true);
+	PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, true);
 	
 	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\??\\sysmon");
 	IoDeleteSymbolicLink(&symLink);
@@ -210,4 +212,17 @@ NTSTATUS SysMonRead(
 	IoCompleteRequest(Irp, 0);
 
 	return status;
+}
+
+NTSTATUS SysMonCreateClose(
+	_DEVICE_OBJECT* DeviceObject,
+	_IRP* Irp
+) {
+	UNREFERENCED_PARAMETER(DeviceObject);
+
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	Irp->IoStatus.Information = 0;
+	IoCompleteRequest(Irp, 0);
+
+	return STATUS_SUCCESS;
 }
