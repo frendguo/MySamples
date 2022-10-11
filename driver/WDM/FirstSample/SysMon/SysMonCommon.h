@@ -1,5 +1,4 @@
 #pragma once
-#include <ntdef.h>
 
 enum class ItemType : short
 {

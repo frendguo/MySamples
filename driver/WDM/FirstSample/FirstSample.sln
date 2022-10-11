@@ -17,6 +17,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZeroTest", "ZeroTest\ZeroTe
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SysMon", "SysMon\SysMon.vcxproj", "{210F5FA5-AE45-4FDE-ADC1-CAB53D39927B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SysMonClient", "SysMonClient\SysMonClient.vcxproj", "{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -141,6 +143,18 @@ Global
 		{210F5FA5-AE45-4FDE-ADC1-CAB53D39927B}.Release|x86.ActiveCfg = Release|x64
 		{210F5FA5-AE45-4FDE-ADC1-CAB53D39927B}.Release|x86.Build.0 = Release|x64
 		{210F5FA5-AE45-4FDE-ADC1-CAB53D39927B}.Release|x86.Deploy.0 = Release|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Debug|ARM64.ActiveCfg = Debug|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Debug|ARM64.Build.0 = Debug|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Debug|x64.ActiveCfg = Debug|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Debug|x64.Build.0 = Debug|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Debug|x86.ActiveCfg = Debug|Win32
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Debug|x86.Build.0 = Debug|Win32
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|ARM64.ActiveCfg = Release|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|ARM64.Build.0 = Release|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x64.ActiveCfg = Release|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x64.Build.0 = Release|x64
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x86.ActiveCfg = Release|Win32
+		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
