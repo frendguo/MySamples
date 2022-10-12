@@ -4,7 +4,9 @@ enum class ItemType : short
 {
 	None,
 	ProcessCreate,
-	ProcessExit
+	ProcessExit,
+	ThreadCreate,
+	ThreadExit
 };
 
 struct ItemHeader
@@ -27,3 +29,8 @@ struct ProcessCreateInfo : ItemHeader
 	USHORT CommandLineOffset;
 };
 
+struct ThreadCreateExitInfo : ItemHeader
+{
+	ULONG ProcessId;
+	ULONG ThreadId;
+};

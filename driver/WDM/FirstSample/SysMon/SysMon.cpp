@@ -11,6 +11,9 @@ void PushItem(LIST_ENTRY* entry);
 void OnProcessNotify(HANDLE Process,
 	HANDLE ProcessId,
 	PPS_CREATE_NOTIFY_INFO CreateInfo);
+void OnThreadNotify(HANDLE ProcessId,
+	HANDLE ThreadId,
+	BOOLEAN Create);
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject);
 
@@ -60,24 +63,30 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 			break;
 		}
 
+		status = PsSetCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)OnThreadNotify);
+		if (!NT_SUCCESS(status)) {
+			KdPrint((DRIVER_PREFIX "failed to register thread create notify.(0x%08X)\n", status));
+			break;
+		}
+
 	} while (false);
 
-	// 处理失败的场景
-	if (!NT_SUCCESS(status)) {
-		if (symLinkCreated) {
-			IoDeleteSymbolicLink(&symLink);
+		// 处理失败的场景
+		if (!NT_SUCCESS(status)) {
+			if (symLinkCreated) {
+				IoDeleteSymbolicLink(&symLink);
+			}
+			if (DeviceObject) {
+				IoDeleteDevice(DeviceObject);
+			}
 		}
-		if (DeviceObject) {
-			IoDeleteDevice(DeviceObject);
-		}
-	}
 
-	DriverObject->DriverUnload = SysMonUnload;
-	DriverObject->MajorFunction[IRP_MJ_CREATE] =
-		DriverObject->MajorFunction[IRP_MJ_CLOSE] = SysMonCreateClose;
-	DriverObject->MajorFunction[IRP_MJ_READ] = SysMonRead;
+		DriverObject->DriverUnload = SysMonUnload;
+		DriverObject->MajorFunction[IRP_MJ_CREATE] =
+			DriverObject->MajorFunction[IRP_MJ_CLOSE] = SysMonCreateClose;
+		DriverObject->MajorFunction[IRP_MJ_READ] = SysMonRead;
 
-	return status;
+		return status;
 }
 
 void OnProcessNotify(HANDLE Process,
@@ -134,6 +143,28 @@ void OnProcessNotify(HANDLE Process,
 	}
 }
 
+void OnThreadNotify(HANDLE ProcessId,
+	HANDLE ThreadId,
+	BOOLEAN Create) {
+
+	auto info = (FullItem<ThreadCreateExitInfo>*)ExAllocatePool2(POOL_FLAG_PAGED, 
+		sizeof(FullItem<ThreadCreateExitInfo>), DRIVER_TAG);
+
+	if (info == nullptr) {
+		KdPrint((DRIVER_PREFIX "Failed to allocate pool to fill TheadCreateExitInfo!"));
+		return;
+	}
+
+	auto& item = info->Data;
+	KeQuerySystemTime(&item.Time);
+	item.ProcessId = HandleToULong(ProcessId);
+	item.ThreadId = HandleToULong(ThreadId);
+	item.Size = sizeof(ThreadCreateExitInfo);
+	item.Type = Create ? ItemType::ThreadCreate : ItemType::ThreadExit;
+
+	PushItem(&info->Entry);
+}
+
 void PushItem(LIST_ENTRY* entry) {
 	AutoLock<FastMutex> lock(g_Globals.Mutex);
 
@@ -150,7 +181,8 @@ void PushItem(LIST_ENTRY* entry) {
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
 	PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, true);
-	
+	PsRemoveCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)OnThreadNotify);
+
 	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\??\\sysmon");
 	IoDeleteSymbolicLink(&symLink);
 	IoDeleteDevice(DriverObject->DeviceObject);
