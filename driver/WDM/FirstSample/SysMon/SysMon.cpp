@@ -27,7 +27,9 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 	g_Globals.Mutex.Init();
 
 	PDEVICE_OBJECT DeviceObject = nullptr;
-	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\?\\SysMon");
+	// 符号链接名称应该是：\??\SysMon
+	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\??\\SysMon");
+	// 设备名称应该是 \Device\SysMon
 	UNICODE_STRING devName = RTL_CONSTANT_STRING(L"\\Device\\SysMon");
 
 	bool symLinkCreated = false;
