@@ -157,7 +157,7 @@ void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
 
 	while (!IsListEmpty(&g_Globals.ItemsHeader))
 	{
-		auto entry = RemoveEntryList(&g_Globals.ItemsHeader);
+		auto entry = RemoveHeadList(&g_Globals.ItemsHeader);
 		ExFreePool(CONTAINING_RECORD(entry, FullItem<ItemHeader>, Entry));
 	}
 }
