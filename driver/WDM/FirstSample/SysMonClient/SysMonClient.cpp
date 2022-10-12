@@ -42,6 +42,19 @@ void DisplayInfo(BYTE* buffer, DWORD size) {
 			printf("Process %d Created. Commandline is %ws\n", info->ProcessId, commandLine.c_str());
 			break;
 		}
+		case ItemType::ThreadCreate:
+		{
+			DisplayTime(header->Time);
+			auto info = (ThreadCreateExitInfo*)header;
+			printf("Thread %d created in process %d. \n", info->ThreadId, info->ProcessId);
+			break;
+		}
+		case ItemType::ThreadExit:
+		{
+			DisplayTime(header->Time);
+			auto info = (ThreadCreateExitInfo*)header;
+			printf("Thread %d deleted in process %d. \n", info->ThreadId, info->ProcessId);
+		}
 		default:
 			break;
 		}
