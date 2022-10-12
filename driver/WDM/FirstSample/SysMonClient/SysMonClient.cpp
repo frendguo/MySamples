@@ -15,7 +15,7 @@ void DisplayTime(const LARGE_INTEGER& time) {
 	SYSTEMTIME st{};
 	FileTimeToSystemTime((FILETIME*)&time, &st);
 
-	printf("%02d:%02d:%02d.%03d", st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+	printf("%02d:%02d:%02d.%03d ", st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
 }
 
 void DisplayInfo(BYTE* buffer, DWORD size) {
