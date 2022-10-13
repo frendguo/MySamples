@@ -6,7 +6,8 @@ enum class ItemType : short
 	ProcessCreate,
 	ProcessExit,
 	ThreadCreate,
-	ThreadExit
+	ThreadExit,
+	LoadImage
 };
 
 struct ItemHeader
@@ -33,4 +34,13 @@ struct ThreadCreateExitInfo : ItemHeader
 {
 	ULONG ProcessId;
 	ULONG ThreadId;
+};
+
+const int MaxImageFileSize = 300;
+struct LoadImageInfo : ItemHeader
+{
+	ULONG ProcessId;
+	void* LoadAddress;
+	ULONG_PTR ImageSize;
+	WCHAR ImageFileName[MaxImageFileSize + 1];
 };

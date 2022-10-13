@@ -8,12 +8,9 @@ Globals g_Globals;
 #define DRIVER_TAG 'sysm'
 
 void PushItem(LIST_ENTRY* entry);
-void OnProcessNotify(HANDLE Process,
-	HANDLE ProcessId,
-	PPS_CREATE_NOTIFY_INFO CreateInfo);
-void OnThreadNotify(HANDLE ProcessId,
-	HANDLE ThreadId,
-	BOOLEAN Create);
+void OnProcessNotify(HANDLE Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
+void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
+void OnLoadImageNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
 
 void SysMonUnload(_DRIVER_OBJECT* DriverObject);
 
@@ -63,9 +60,17 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 			break;
 		}
 
+		// 4. 注册线程通知
 		status = PsSetCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)OnThreadNotify);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "failed to register thread create notify.(0x%08X)\n", status));
+			break;
+		}
+
+		// 5. 注册映像载入通知
+		status = PsSetLoadImageNotifyRoutine(OnLoadImageNotify);
+		if (!NT_SUCCESS(status)) {
+			KdPrint((DRIVER_PREFIX "failed to register load image notify.(0x%08X)\n", status));
 			break;
 		}
 
@@ -147,7 +152,7 @@ void OnThreadNotify(HANDLE ProcessId,
 	HANDLE ThreadId,
 	BOOLEAN Create) {
 
-	auto info = (FullItem<ThreadCreateExitInfo>*)ExAllocatePool2(POOL_FLAG_PAGED, 
+	auto info = (FullItem<ThreadCreateExitInfo>*)ExAllocatePool2(POOL_FLAG_PAGED,
 		sizeof(FullItem<ThreadCreateExitInfo>), DRIVER_TAG);
 
 	if (info == nullptr) {
@@ -162,6 +167,34 @@ void OnThreadNotify(HANDLE ProcessId,
 	item.Size = sizeof(ThreadCreateExitInfo);
 	item.Type = Create ? ItemType::ThreadCreate : ItemType::ThreadExit;
 
+	PushItem(&info->Entry);
+}
+
+void OnLoadImageNotify(
+	PUNICODE_STRING FullImageName,
+	HANDLE ProcessId,                // pid into which image is being mapped
+	PIMAGE_INFO ImageInfo
+) {
+	auto info = (FullItem<LoadImageInfo>*)ExAllocatePool2(POOL_FLAG_PAGED, sizeof(FullItem<LoadImageInfo>), DRIVER_TAG);
+	if (info == nullptr) {
+		KdPrint((DRIVER_PREFIX "Failed to allocate pool to fill LoadImageInfo!"));
+		return;
+	}
+
+	auto& item = info->Data;
+	KeQuerySystemTimePrecise(&item.Time);
+	item.ProcessId = HandleToLong(ProcessId);
+	item.Type = ItemType::LoadImage;
+	item.Size = sizeof(LoadImageInfo);
+	item.ImageSize = ImageInfo->ImageSize;
+	item.LoadAddress = ImageInfo->ImageBase;
+	if (FullImageName) {
+		memcpy(item.ImageFileName, FullImageName->Buffer, min(FullImageName->Length, MaxImageFileSize * sizeof(WCHAR)));
+	}
+	else {
+		wcscpy_s(item.ImageFileName, L"(unknow)");
+	}
+	
 	PushItem(&info->Entry);
 }
 
@@ -182,6 +215,7 @@ void PushItem(LIST_ENTRY* entry) {
 void SysMonUnload(_DRIVER_OBJECT* DriverObject) {
 	PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, true);
 	PsRemoveCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)OnThreadNotify);
+	PsRemoveLoadImageNotifyRoutine(OnLoadImageNotify);
 
 	UNICODE_STRING symLink = RTL_CONSTANT_STRING(L"\\??\\sysmon");
 	IoDeleteSymbolicLink(&symLink);
