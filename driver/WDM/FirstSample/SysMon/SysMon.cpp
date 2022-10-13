@@ -8,7 +8,7 @@ Globals g_Globals;
 #define DRIVER_TAG 'sysm'
 
 void PushItem(LIST_ENTRY* entry);
-void OnProcessNotify(HANDLE Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
+void OnProcessNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
 void OnThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
 void OnLoadImageNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
 
@@ -54,7 +54,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 		symLinkCreated = true;
 
 		// 3. 注册进程通知
-		status = PsSetCreateProcessNotifyRoutineEx((PCREATE_PROCESS_NOTIFY_ROUTINE_EX)OnProcessNotify, false);
+		status = PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, false);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "failed to register process create notify.(0x%08X)\n", status));
 			break;
@@ -94,7 +94,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 		return status;
 }
 
-void OnProcessNotify(HANDLE Process,
+void OnProcessNotify(PEPROCESS Process,
 	HANDLE ProcessId,
 	PPS_CREATE_NOTIFY_INFO CreateInfo) {
 	UNREFERENCED_PARAMETER(Process);
@@ -137,7 +137,7 @@ void OnProcessNotify(HANDLE Process,
 			KdPrint((DRIVER_PREFIX "failed allocation.\n"));
 			return;
 		}
-
+		
 		auto& item = info->Data;
 		KeQuerySystemTimePrecise(&item.Time);
 		item.Type = ItemType::ProcessExit;
