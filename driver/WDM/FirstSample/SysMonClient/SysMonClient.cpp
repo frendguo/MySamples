@@ -55,6 +55,14 @@ void DisplayInfo(BYTE* buffer, DWORD size) {
 			auto info = (ThreadCreateExitInfo*)header;
 			printf("Thread %d deleted in process %d. \n", info->ThreadId, info->ProcessId);
 		}
+		case ItemType::LoadImage:
+		{
+			DisplayTime(header->Time);
+			auto info = (LoadImageInfo*)header;
+			printf("Image is loaded in process %d, Image name is: %ws, size is %llu \n", 
+				info->ProcessId, info->ImageFileName, info->ImageSize);
+			break;
+		}
 		default:
 			break;
 		}
