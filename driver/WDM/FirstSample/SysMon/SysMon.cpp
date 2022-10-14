@@ -61,7 +61,7 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 		}
 
 		// 4. 注册线程通知
-		status = PsSetCreateThreadNotifyRoutine((PCREATE_THREAD_NOTIFY_ROUTINE)OnThreadNotify);
+		status = PsSetCreateThreadNotifyRoutine(OnThreadNotify);
 		if (!NT_SUCCESS(status)) {
 			KdPrint((DRIVER_PREFIX "failed to register thread create notify.(0x%08X)\n", status));
 			break;
