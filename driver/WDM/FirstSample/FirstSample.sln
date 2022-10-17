@@ -19,6 +19,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SysMon", "SysMon\SysMon.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SysMonClient", "SysMonClient\SysMonClient.vcxproj", "{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ProcessInterceptor", "ProcessInterceptor\ProcessInterceptor.vcxproj", "{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -155,6 +157,24 @@ Global
 		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x64.Build.0 = Release|x64
 		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x86.ActiveCfg = Release|Win32
 		{21F7BCEA-FC2F-4754-9DA6-5A96070416F1}.Release|x86.Build.0 = Release|Win32
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|ARM64.Build.0 = Debug|ARM64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|x64.ActiveCfg = Debug|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|x64.Build.0 = Debug|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|x64.Deploy.0 = Debug|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|x86.ActiveCfg = Debug|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|x86.Build.0 = Debug|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Debug|x86.Deploy.0 = Debug|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|ARM64.ActiveCfg = Release|ARM64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|ARM64.Build.0 = Release|ARM64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|ARM64.Deploy.0 = Release|ARM64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|x64.ActiveCfg = Release|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|x64.Build.0 = Release|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|x64.Deploy.0 = Release|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|x86.ActiveCfg = Release|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|x86.Build.0 = Release|x64
+		{37C5B263-ED2B-4DBA-98A2-79B0A85E70C3}.Release|x86.Deploy.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
