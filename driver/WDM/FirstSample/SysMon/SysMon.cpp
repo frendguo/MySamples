@@ -76,22 +76,22 @@ DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegisterPath) {
 
 	} while (false);
 
-		// 处理失败的场景
-		if (!NT_SUCCESS(status)) {
-			if (symLinkCreated) {
-				IoDeleteSymbolicLink(&symLink);
-			}
-			if (DeviceObject) {
-				IoDeleteDevice(DeviceObject);
-			}
+	// 处理失败的场景
+	if (!NT_SUCCESS(status)) {
+		if (symLinkCreated) {
+			IoDeleteSymbolicLink(&symLink);
 		}
+		if (DeviceObject) {
+			IoDeleteDevice(DeviceObject);
+		}
+	}
 
-		DriverObject->DriverUnload = SysMonUnload;
-		DriverObject->MajorFunction[IRP_MJ_CREATE] =
-			DriverObject->MajorFunction[IRP_MJ_CLOSE] = SysMonCreateClose;
-		DriverObject->MajorFunction[IRP_MJ_READ] = SysMonRead;
+	DriverObject->DriverUnload = SysMonUnload;
+	DriverObject->MajorFunction[IRP_MJ_CREATE] =
+		DriverObject->MajorFunction[IRP_MJ_CLOSE] = SysMonCreateClose;
+	DriverObject->MajorFunction[IRP_MJ_READ] = SysMonRead;
 
-		return status;
+	return status;
 }
 
 void OnProcessNotify(PEPROCESS Process,
@@ -137,7 +137,7 @@ void OnProcessNotify(PEPROCESS Process,
 			KdPrint((DRIVER_PREFIX "failed allocation.\n"));
 			return;
 		}
-		
+
 		auto& item = info->Data;
 		KeQuerySystemTimePrecise(&item.Time);
 		item.Type = ItemType::ProcessExit;
@@ -194,7 +194,7 @@ void OnLoadImageNotify(
 	else {
 		wcscpy_s(item.ImageFileName, L"(unknow)");
 	}
-	
+
 	PushItem(&info->Entry);
 }
 
