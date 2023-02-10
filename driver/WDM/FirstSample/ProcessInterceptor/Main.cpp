@@ -18,7 +18,7 @@ NTSTATUS CompleteIo(PIRP& Irp, NTSTATUS status, int count = 0) {
 	Irp->IoStatus.Status = status;
 	Irp->IoStatus.Information = count;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
+	
 	return status;
 }
 
@@ -155,6 +155,8 @@ void OnProcessCreateCloseNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_
 		auto info = CONTAINING_RECORD(entry, FullItem<char*>, Entry);
 		// 比较和进程名是否一致
 		auto len = strlen((char*)procName);
+
+		// RtlEqualUnicodeString()
 		if (!strncmp((char*)procName, info->Data, len)) {
 			CreateInfo->CreationStatus = STATUS_UNSUCCESSFUL;
 			return;
