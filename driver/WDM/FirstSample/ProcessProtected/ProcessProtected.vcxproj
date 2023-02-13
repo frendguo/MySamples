@@ -94,9 +94,12 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FastMutex.cpp" />
     <ClCompile Include="ProcessProtect.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AutoLock.h" />
+    <ClInclude Include="FastMutex.h" />
     <ClInclude Include="ProcessProtect.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

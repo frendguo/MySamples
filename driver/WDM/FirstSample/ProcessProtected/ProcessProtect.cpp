@@ -1,12 +1,13 @@
 ﻿#include "ProcessProtect.h"
-#include <ntifs.h>
 #include <ntddk.h>
+#include <ntifs.h>
+
+#include "AutoLock.h"
 
 OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext,
                                           POB_PRE_OPERATION_INFORMATION info);
 
 Globals g_Data;
-
 
 void DriverUnload(PDRIVER_OBJECT DriverObject);
 NTSTATUS DriverCreateOrClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
@@ -35,24 +36,27 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
       RTL_CONSTANT_STRING(L"\\??\\" PROCESS_PROTECT_NAME);
   PDEVICE_OBJECT DeviceObject = nullptr;
 
+  g_Data.Init();
+
   do {
     status = ObRegisterCallbacks(&reg, &g_Data.RegHandle);
     if (!NT_SUCCESS(status)) {
-      KdPrint(
-          (DRIVER_PREFIX "Failed to register callback (status=%08X).", status));
+      KdPrint((DRIVER_PREFIX "Failed to register callback (status=%08X).\n",
+               status));
       break;
     }
 
     status = IoCreateDevice(DriverObject, 0, &deviceName, FILE_DEVICE_UNKNOWN,
                             0, false, &DeviceObject);
     if (!NT_SUCCESS(status)) {
-      KdPrint((DRIVER_PREFIX "Failed to create deivce (status=%08X).", status));
+      KdPrint(
+          (DRIVER_PREFIX "Failed to create deivce (status=%08X).\n", status));
       break;
     }
 
     status = IoCreateSymbolicLink(&symbolName, &deviceName);
     if (!NT_SUCCESS(status)) {
-      KdPrint((DRIVER_PREFIX "Failed to create symbol link (status=%08X).",
+      KdPrint((DRIVER_PREFIX "Failed to create symbol link (status=%08X).\n",
                status));
       break;
     }
@@ -79,7 +83,7 @@ void DriverUnload(PDRIVER_OBJECT DriverObject) {
   ObUnRegisterCallbacks(g_Data.RegHandle);
 
   UNICODE_STRING symName = RTL_CONSTANT_STRING(L"\\??\\" PROCESS_PROTECT_NAME);
-  
+
   IoDeleteDevice(DriverObject->DeviceObject);
   IoDeleteSymbolicLink(&symName);
 }
@@ -95,7 +99,7 @@ NTSTATUS DriverCreateOrClose(PDEVICE_OBJECT DeviceObject, PIRP Irp) {
 }
 
 OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext,
-  POB_PRE_OPERATION_INFORMATION info) {
+                                          POB_PRE_OPERATION_INFORMATION info) {
   auto status = OB_PREOP_SUCCESS;
 
   UNREFERENCED_PARAMETER(RegistrationContext);
@@ -106,22 +110,31 @@ OB_PREOP_CALLBACK_STATUS OnPreOpenProcess(PVOID RegistrationContext,
   }
 
   UNICODE_STRING processName = RTL_CONSTANT_STRING(L"notepad.exe");
+
   auto process = (PEPROCESS)info->Object;
   PUNICODE_STRING imageName;
   auto s = SeLocateProcessImageName(process, &imageName);
   if (!NT_SUCCESS(s)) {
-    KdPrint(("----Failed to get image name."));
-    ObDereferenceObject(process);
+    KdPrint(("----Failed to get image name.\n"));
     return status;
   }
 
-  if (RtlEqualUnicodeString(imageName, &processName, false)) {
+  if (imageName->Length < 1) {
+    KdPrint(("image paht is empty.\n"));
+    return status;
+  }
+
+  // KdPrint(("-------%ws\n", imageName->Buffer));
+
+  AutoLock<FastMutex> locker(g_Data.Lock);
+  if (wcsstr(imageName->Buffer, processName.Buffer) != NULL) {
+    KdPrint(("*----DesiredAccess=(%08X),",
+             info->Parameters->CreateHandleInformation.DesiredAccess));
     info->Parameters->CreateHandleInformation.DesiredAccess &=
         ~PROCESS_TERMINATE;
+    KdPrint(("*----DesiredAccess2=(%08X)------*\n",
+             info->Parameters->CreateHandleInformation.DesiredAccess));
   }
-  
-  ExFreePoolWithTag(imageName, 0);
-  ObDereferenceObject(process);
 
   return status;
 }
