@@ -4,7 +4,7 @@
 
 int main()
 {
-    auto hDevice = CreateFile(L"\\\\.\\ProcessInterceptor", GENERIC_READ | GENERIC_WRITE,
+    auto hDevice = CreateFile(L"\\??\\ProcessProtect", GENERIC_READ | GENERIC_WRITE,
         0, nullptr, OPEN_EXISTING, 0, nullptr);
 
     if (hDevice == INVALID_HANDLE_VALUE) {
@@ -12,10 +12,11 @@ int main()
         return 0;
     }
 
-    std::string s = "InstDrv.exe";
+    //std::string s = "InstDrv.exe";
     DWORD bytes = 0;
+    ULONG pid = 4236;
     
-    WriteFile(hDevice, s.c_str(), s.size(), &bytes, nullptr);
+    WriteFile(hDevice, &pid, sizeof(pid), &bytes, nullptr);
 
     return 0;
 }
