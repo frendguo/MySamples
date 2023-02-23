@@ -29,6 +29,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ProcessProtected", "Process
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ProcessProtect2", "ProcessProtect2\ProcessProtect2.vcxproj", "{E2FC6BFF-34DD-4AD5-A9BE-BCB7C0E00318}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DelFileProtect", "DelFileProtect\DelFileProtect.vcxproj", "{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -249,6 +251,24 @@ Global
 		{E2FC6BFF-34DD-4AD5-A9BE-BCB7C0E00318}.Release|x86.ActiveCfg = Release|x64
 		{E2FC6BFF-34DD-4AD5-A9BE-BCB7C0E00318}.Release|x86.Build.0 = Release|x64
 		{E2FC6BFF-34DD-4AD5-A9BE-BCB7C0E00318}.Release|x86.Deploy.0 = Release|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|ARM64.Build.0 = Debug|ARM64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|x64.ActiveCfg = Debug|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|x64.Build.0 = Debug|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|x64.Deploy.0 = Debug|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|x86.ActiveCfg = Debug|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|x86.Build.0 = Debug|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Debug|x86.Deploy.0 = Debug|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|ARM64.ActiveCfg = Release|ARM64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|ARM64.Build.0 = Release|ARM64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|ARM64.Deploy.0 = Release|ARM64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|x64.ActiveCfg = Release|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|x64.Build.0 = Release|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|x64.Deploy.0 = Release|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|x86.ActiveCfg = Release|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|x86.Build.0 = Release|x64
+		{E0843E44-0952-42F5-B5B2-DE46F1F83FDC}.Release|x86.Deploy.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
