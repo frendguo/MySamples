@@ -96,6 +96,7 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject) {
 
 NTSTATUS FilterUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
   UNREFERENCED_PARAMETER(Flags);
+  KdPrint(("---[MiniFilter]FilterUnload----\n"));
   return STATUS_SUCCESS;
 }
 
@@ -109,6 +110,7 @@ FilterInstanceSetupCallback(PCFLT_RELATED_OBJECTS FltObjects,
   UNREFERENCED_PARAMETER(VolumeDeviceType);
   UNREFERENCED_PARAMETER(VolumeFilesystemType);
 
+  KdPrint(("---[MiniFilter]FilterInstanceSetupCallback----\n"));
   return STATUS_SUCCESS;
 }
 
@@ -121,7 +123,7 @@ FLT_PREOP_CALLBACK_STATUS FileCreatePreCallback(
   UNREFERENCED_PARAMETER(CompletionContext);
 
   FLT_PREOP_CALLBACK_STATUS status = FLT_PREOP_SUCCESS_NO_CALLBACK;
-
+  KdPrint(("---[MiniFilter]FileCreatePreCallback----\n"));
   return status;
 }
 
@@ -132,7 +134,7 @@ FLT_PREOP_CALLBACK_STATUS FileReadPreCallback(PFLT_CALLBACK_DATA Data,
   UNREFERENCED_PARAMETER(FltObjects);
   UNREFERENCED_PARAMETER(CompletionContext);
   FLT_PREOP_CALLBACK_STATUS status = FLT_PREOP_SUCCESS_NO_CALLBACK;
-
+  KdPrint(("---[MiniFilter]FileReadPreCallback----\n"));
   
 
   return status;
@@ -145,6 +147,6 @@ FLT_PREOP_CALLBACK_STATUS FileWritePreCallback(PFLT_CALLBACK_DATA Data,
   UNREFERENCED_PARAMETER(FltObjects);
   UNREFERENCED_PARAMETER(CompletionContext);
   FLT_PREOP_CALLBACK_STATUS status = FLT_PREOP_SUCCESS_NO_CALLBACK;
-
+  KdPrint(("---[MiniFilter]FileWritePreCallback----\n"));
   return status;
 }
