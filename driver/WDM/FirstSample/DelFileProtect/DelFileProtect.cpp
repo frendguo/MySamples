@@ -29,7 +29,6 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
   NTSTATUS retStatus = STATUS_SUCCESS;
 
   UNICODE_STRING devName = RTL_CONSTANT_STRING(L"\\Device\\DelFileProtect");
-  UNICODE_STRING symlinkName = RTL_CONSTANT_STRING(L"\\??\\DelFileProtect");
   PDEVICE_OBJECT deviceObject;
 
   FLT_OPERATION_REGISTRATION callbacks[] = {
@@ -61,12 +60,6 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
                                0, false, &deviceObject);
     if (!NT_SUCCESS(retStatus)) {
       KdPrint(("Error: Fail to create device. (state=0X%X)", retStatus));
-      break;
-    }
-
-    retStatus = IoCreateSymbolicLink(&symlinkName, &devName);
-    if (!NT_SUCCESS(retStatus)) {
-      KdPrint(("Error: Fail to create symbolic link. (state=0X%X)", retStatus));
       break;
     }
 
