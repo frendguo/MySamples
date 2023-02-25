@@ -21,7 +21,7 @@ FLT_PREOP_CALLBACK_STATUS FileSetInfomationPreCallback(
 
 bool IsPreventProcess(PEPROCESS process);
 
-PFLT_FILTER g_fileter;
+PFLT_FILTER g_filter;
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
                                 PUNICODE_STRING RegisterPath) {
@@ -29,6 +29,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
   NTSTATUS retStatus = STATUS_SUCCESS;
 
   UNICODE_STRING devName = RTL_CONSTANT_STRING(L"\\Device\\DelFileProtect");
+  UNICODE_STRING symlinkName = RTL_CONSTANT_STRING(L"\\??\\DelFileProtect");
   PDEVICE_OBJECT deviceObject;
 
   FLT_OPERATION_REGISTRATION callbacks[] = {
@@ -59,13 +60,25 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
     retStatus = IoCreateDevice(DriverObject, 0, &devName, FILE_DEVICE_UNKNOWN,
                                0, false, &deviceObject);
     if (!NT_SUCCESS(retStatus)) {
-      KdPrint(("Error: Fail to create device. (state=%X)", retStatus));
+      KdPrint(("Error: Fail to create device. (state=0X%X)", retStatus));
       break;
     }
 
-    retStatus = FltRegisterFilter(DriverObject, &reg, &g_fileter);
+    retStatus = IoCreateSymbolicLink(&symlinkName, &devName);
     if (!NT_SUCCESS(retStatus)) {
-      KdPrint(("Error: Fail to register filter. (state=%X)", retStatus));
+      KdPrint(("Error: Fail to create symbolic link. (state=0X%X)", retStatus));
+      break;
+    }
+
+    retStatus = FltRegisterFilter(DriverObject, &reg, &g_filter);
+    if (!NT_SUCCESS(retStatus)) {
+      KdPrint(("Error: Fail to register filter. (state=0X%X)", retStatus));
+      break;
+    }
+
+    retStatus = FltStartFiltering(g_filter);
+    if (!NT_SUCCESS(retStatus)) {
+      KdPrint(("Error: Fail to start filter. (state=0X%X)", retStatus));
       break;
     }
   } while (false);
@@ -77,10 +90,15 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
 
 void DriverUnload(PDRIVER_OBJECT DriverObject) {
   IoDeleteDevice(DriverObject->DeviceObject);
-  FltUnregisterFilter(g_fileter);
+
+  UNICODE_STRING symlinkName = RTL_CONSTANT_STRING(L"\\??\\DelFileProtect");
+  IoDeleteSymbolicLink(&symlinkName);
+  FltUnregisterFilter(g_filter);
 }
 
 NTSTATUS FilterUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
+  UNREFERENCED_PARAMETER(Flags);
+
   return STATUS_SUCCESS;
 }
 
@@ -89,6 +107,11 @@ FilterInstanceSetupCallback(PCFLT_RELATED_OBJECTS FltObjects,
                             FLT_INSTANCE_SETUP_FLAGS Flags,
                             DEVICE_TYPE VolumeDeviceType,
                             FLT_FILESYSTEM_TYPE VolumeFilesystemType) {
+  UNREFERENCED_PARAMETER(FltObjects);
+  UNREFERENCED_PARAMETER(Flags);
+  UNREFERENCED_PARAMETER(VolumeDeviceType);
+  UNREFERENCED_PARAMETER(VolumeFilesystemType);
+
   return STATUS_SUCCESS;
 }
 
@@ -137,6 +160,7 @@ FLT_PREOP_CALLBACK_STATUS FileSetInfomationPreCallback(
   if (info->DeleteFile) {
     PEPROCESS eProcess = PsGetThreadProcess(Data->Thread);
     if (IsPreventProcess(eProcess)) {
+      KdPrint(("-----Prevent delete operation."));
       Data->IoStatus.Status = STATUS_ACCESS_DENIED;
       return FLT_PREOP_COMPLETE;
     }
