@@ -47,6 +47,7 @@ NTSTATUS CleanFileIdFullDirectoryInformation(
     PFLT_FILE_NAME_INFORMATION fltname);
 
 bool IsPreventProcess(PEPROCESS process);
+bool IsHiddenDir(PUNICODE_STRING dir, PUNICODE_STRING file);
 
 PFLT_FILTER g_filter;
 
@@ -240,6 +241,7 @@ FLT_POSTOP_CALLBACK_STATUS DirectoryControlPostCallback(
     switch (Data->Iopb->Parameters.DirectoryControl.QueryDirectory
                 .FileInformationClass) {
       case FileBothDirectoryInformation:
+        // powershell 访问进到这里
         KdPrint(("------FileBothDirectoryInformation------\n"));
         CleanFileBothDirectoryInfomation(
             (PFILE_BOTH_DIR_INFORMATION)Data->Iopb->Parameters.DirectoryControl
@@ -261,6 +263,7 @@ FLT_POSTOP_CALLBACK_STATUS DirectoryControlPostCallback(
             fltName);
         break;
       case FileIdBothDirectoryInformation:
+        // explorer 会进到这里
         KdPrint(("-----FileIdBothDirectoryInformation-----\n"));
         CleanFileIdBothDirectoryInformation(
             (PFILE_ID_BOTH_DIR_INFORMATION)Data->Iopb->Parameters
@@ -293,108 +296,454 @@ FLT_POSTOP_CALLBACK_STATUS DirectoryControlPostCallback(
 
 NTSTATUS CleanFileBothDirectoryInfomation(PFILE_BOTH_DIR_INFORMATION info,
                                           PFLT_FILE_NAME_INFORMATION fltname) {
-  UNICODE_STRING desDir = RTL_CONSTANT_STRING(
-      L"\\Device\\HarddiskVolume3\\Users\\WDKRemoteUser\\Desktop\\hidden "
-      L"folder");
+  UNICODE_STRING fileName{};
+  PFILE_BOTH_DIR_INFORMATION preInfo = NULL, nextInfo = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
+  bool retn = false;
+  int moveLength, offset = 0;
 
-  UNICODE_STRING directoryName{};
-  directoryName.Buffer = info->FileName;
-  directoryName.Length = (USHORT)info->FileNameLength;
-  directoryName.MaximumLength = (USHORT)info->FileNameLength;
+  BOOLEAN search = true;
+  do {
+    fileName.Buffer = info->FileName;
+    fileName.Length = (USHORT)info->FileNameLength;
+    fileName.MaximumLength = (USHORT)info->FileNameLength;
 
-  KdPrint(("---directoryname is %wZ---", directoryName));
-  KdPrint(("---fltname is %wZ---\n", fltname->Name));
+    if (IsHiddenDir(&fltname->Name, &fileName)) {
+      KdPrint(("\n---IsHiddenTarget!---\n\n"));
+      if (preInfo == NULL) {
+        if (info->NextEntryOffset == 0) {
+          status = STATUS_NO_MORE_ENTRIES;
+          retn = true;
+        } else {
+          nextInfo = (PFILE_BOTH_DIR_INFORMATION)((PUCHAR)info +
+                                                  info->NextEntryOffset);
+          moveLength = 0;
+          while (nextInfo->NextEntryOffset != 0) {
+            // 这里把所有的 entry 的偏移量加起来
+            moveLength += nextInfo->NextEntryOffset;
+            nextInfo = (PFILE_BOTH_DIR_INFORMATION)((PUCHAR)nextInfo +
+                                                    nextInfo->NextEntryOffset);
+          }
 
-  if (RtlEqualUnicodeString(&desDir, &directoryName, false)) {
-    RtlFillMemory(info, sizeof(PFILE_BOTH_DIR_INFORMATION), 0);
-  }
+          moveLength += FIELD_OFFSET(FILE_BOTH_DIR_INFORMATION, FileName) +
+                        nextInfo->FileNameLength;
+          KdPrint(
+              ("\n-----RtlMoveMemory---dir is %wZ----filename is %wZ-----\n\n",
+               fltname->Name, fileName));
+          RtlMoveMemory(info, (PUCHAR)info + info->NextEntryOffset, moveLength);
+        }
+      } else {
+        if (info->NextEntryOffset == 0) {
+          preInfo->NextEntryOffset = 0;
+          status = STATUS_SUCCESS;
+          retn = true;
+        } else {
+          preInfo->NextEntryOffset += info->NextEntryOffset;
+          offset = info->NextEntryOffset;
+        }
 
-  return STATUS_SUCCESS;
+        KdPrint(
+            ("\n-----RtlFillMemory---dir is %wZ----filename is %wZ-----\n\n",
+             fltname->Name, fileName));
+        RtlFillMemory(info, sizeof(FILE_BOTH_DIR_INFORMATION), 0);
+      }
+
+      if (retn) {
+        return status;
+      }
+
+      info = (PFILE_BOTH_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+      continue;
+    }
+
+    offset = info->NextEntryOffset;
+    preInfo = info;
+    info = (PFILE_BOTH_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+    if (offset == 0) {
+      search = false;
+    }
+  } while (search);
+
+  return status;
 }
 
 NTSTATUS CleanFileDirectoryInfomation(PFILE_DIRECTORY_INFORMATION info,
                                       PFLT_FILE_NAME_INFORMATION fltname) {
-  UNICODE_STRING dirName{};
-  dirName.Buffer = info->FileName;
-  dirName.Length = (USHORT)info->FileNameLength;
-  dirName.MaximumLength = (USHORT)info->FileNameLength;
+  UNICODE_STRING fileName{};
+  PFILE_DIRECTORY_INFORMATION preInfo = NULL, nextInfo = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
+  bool retn = false;
+  int moveLength, offset = 0;
 
-  KdPrint(("---dirname is %wZ---", dirName));
-  KdPrint(("---fltname is %wZ---\n", fltname->Name));
+  BOOLEAN search = true;
+  do {
+    fileName.Buffer = info->FileName;
+    fileName.Length = (USHORT)info->FileNameLength;
+    fileName.MaximumLength = (USHORT)info->FileNameLength;
 
-  return STATUS_SUCCESS;
+    if (IsHiddenDir(&fltname->Name, &fileName)) {
+      KdPrint(("\n---IsHiddenTarget!---\n\n"));
+      if (preInfo == NULL) {
+        if (info->NextEntryOffset == 0) {
+          status = STATUS_NO_MORE_ENTRIES;
+          retn = true;
+        } else {
+          nextInfo = (PFILE_DIRECTORY_INFORMATION)((PUCHAR)info +
+                                                   info->NextEntryOffset);
+          moveLength = 0;
+          while (nextInfo->NextEntryOffset != 0) {
+            // 这里把所有的 entry 的偏移量加起来
+            moveLength += nextInfo->NextEntryOffset;
+            nextInfo = (PFILE_DIRECTORY_INFORMATION)((PUCHAR)nextInfo +
+                                                     nextInfo->NextEntryOffset);
+          }
+
+          moveLength += FIELD_OFFSET(FILE_DIRECTORY_INFORMATION, FileName) +
+                        nextInfo->FileNameLength;
+          KdPrint(
+              ("\n-----RtlMoveMemory---dir is %wZ----filename is %wZ-----\n\n",
+               fltname->Name, fileName));
+          RtlMoveMemory(info, (PUCHAR)info + info->NextEntryOffset, moveLength);
+        }
+      } else {
+        if (info->NextEntryOffset == 0) {
+          preInfo->NextEntryOffset = 0;
+          status = STATUS_SUCCESS;
+          retn = true;
+        } else {
+          preInfo->NextEntryOffset += info->NextEntryOffset;
+          offset = info->NextEntryOffset;
+        }
+
+        KdPrint(
+            ("\n-----RtlFillMemory---dir is %wZ----filename is %wZ-----\n\n",
+             fltname->Name, fileName));
+        RtlFillMemory(info, sizeof(FILE_DIRECTORY_INFORMATION), 0);
+      }
+
+      if (retn) {
+        return status;
+      }
+
+      info =
+          (PFILE_DIRECTORY_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+      continue;
+    }
+
+    offset = info->NextEntryOffset;
+    preInfo = info;
+    info = (PFILE_DIRECTORY_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+    if (offset == 0) {
+      search = false;
+    }
+  } while (search);
+
+  return status;
 }
 
 NTSTATUS CleanFileFullDirectoryInformation(PFILE_FULL_DIR_INFORMATION info,
                                            PFLT_FILE_NAME_INFORMATION fltname) {
-  UNICODE_STRING dirName{};
-  dirName.Buffer = info->FileName;
-  dirName.Length = (USHORT)info->FileNameLength;
-  dirName.MaximumLength = (USHORT)info->FileNameLength;
+  UNICODE_STRING fileName{};
+  PFILE_FULL_DIR_INFORMATION preInfo = NULL, nextInfo = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
+  bool retn = false;
+  int moveLength, offset = 0;
 
-  KdPrint(("---dirname is %wZ---", dirName));
-  KdPrint(("---fltname is %wZ---\n", fltname->Name));
+  BOOLEAN search = true;
+  do {
+    fileName.Buffer = info->FileName;
+    fileName.Length = (USHORT)info->FileNameLength;
+    fileName.MaximumLength = (USHORT)info->FileNameLength;
 
-  return STATUS_SUCCESS;
+    if (IsHiddenDir(&fltname->Name, &fileName)) {
+      KdPrint(("\n---IsHiddenTarget!---\n\n"));
+      if (preInfo == NULL) {
+        if (info->NextEntryOffset == 0) {
+          status = STATUS_NO_MORE_ENTRIES;
+          retn = true;
+        } else {
+          nextInfo = (PFILE_FULL_DIR_INFORMATION)((PUCHAR)info +
+                                                  info->NextEntryOffset);
+          moveLength = 0;
+          while (nextInfo->NextEntryOffset != 0) {
+            // 这里把所有的 entry 的偏移量加起来
+            moveLength += nextInfo->NextEntryOffset;
+            nextInfo = (PFILE_FULL_DIR_INFORMATION)((PUCHAR)nextInfo +
+                                                    nextInfo->NextEntryOffset);
+          }
+
+          moveLength += FIELD_OFFSET(FILE_FULL_DIR_INFORMATION, FileName) +
+                        nextInfo->FileNameLength;
+          KdPrint(
+              ("\n-----RtlMoveMemory---dir is %wZ----filename is %wZ-----\n\n",
+               fltname->Name, fileName));
+          RtlMoveMemory(info, (PUCHAR)info + info->NextEntryOffset, moveLength);
+        }
+      } else {
+        if (info->NextEntryOffset == 0) {
+          preInfo->NextEntryOffset = 0;
+          status = STATUS_SUCCESS;
+          retn = true;
+        } else {
+          preInfo->NextEntryOffset += info->NextEntryOffset;
+          offset = info->NextEntryOffset;
+        }
+
+        KdPrint(
+            ("\n-----RtlFillMemory---dir is %wZ----filename is %wZ-----\n\n",
+             fltname->Name, fileName));
+        RtlFillMemory(info, sizeof(FILE_FULL_DIR_INFORMATION), 0);
+      }
+
+      if (retn) {
+        return status;
+      }
+
+      info = (PFILE_FULL_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+      continue;
+    }
+
+    offset = info->NextEntryOffset;
+    preInfo = info;
+    info = (PFILE_FULL_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+    if (offset == 0) {
+      search = false;
+    }
+  } while (search);
+
+  return status;
 }
 
 NTSTATUS CleanFileIdBothDirectoryInformation(
     PFILE_ID_BOTH_DIR_INFORMATION info,
     PFLT_FILE_NAME_INFORMATION fltname) {
-  UNICODE_STRING dirName{};
-  dirName.Buffer = info->FileName;
-  dirName.Length = (USHORT)info->FileNameLength;
-  dirName.MaximumLength = (USHORT)info->FileNameLength;
+  UNICODE_STRING fileName{};
+  PFILE_ID_BOTH_DIR_INFORMATION preInfo = NULL, nextInfo = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
+  bool retn = false;
+  int moveLength, offset = 0;
 
-  KdPrint(("---dirname is %wZ---", dirName));
-  KdPrint(("---fltname is %wZ---\n", fltname->Name));
+  BOOLEAN search = true;
+  do {
+    fileName.Buffer = info->FileName;
+    fileName.Length = (USHORT)info->FileNameLength;
+    fileName.MaximumLength = (USHORT)info->FileNameLength;
 
-  UNICODE_STRING desDir = RTL_CONSTANT_STRING(
-      L"\\Device\\HarddiskVolume3\\Users\\WDKRemoteUser\\Desktop\\hidden "
-      L"folder");
+    if (IsHiddenDir(&fltname->Name, &fileName)) {
+      KdPrint(("\n---IsHiddenTarget!---\n\n"));
+      if (preInfo == NULL) {
+        if (info->NextEntryOffset == 0) {
+          status = STATUS_NO_MORE_ENTRIES;
+          retn = true;
+        } else {
+          nextInfo = (PFILE_ID_BOTH_DIR_INFORMATION)((PUCHAR)info +
+                                                     info->NextEntryOffset);
+          moveLength = 0;
+          while (nextInfo->NextEntryOffset != 0) {
+            // 这里把所有的 entry 的偏移量加起来
+            moveLength += nextInfo->NextEntryOffset;
+            nextInfo =
+                (PFILE_ID_BOTH_DIR_INFORMATION)((PUCHAR)nextInfo +
+                                                nextInfo->NextEntryOffset);
+          }
 
-  if (RtlEqualUnicodeString(&desDir, &fltname->Name, false)) {
-    KdPrint(("\n*******FileIdBothDirectoryInformation:::ResetFolderContent****\n"));
-    RtlFillMemory(info, sizeof(PFILE_NAMES_INFORMATION), 0);
-  }
+          // 这里加上一个 FILE_ID_BOTH_DIR_INFORMATION 的 size
+          // FileName 字段是 FILE_ID_BOTH_DIR_INFORMATION
+          // 中最后一个字段，而且结构中只存储了 FileName 的头 还需要加上
+          // FileNameLength
+          moveLength += FIELD_OFFSET(FILE_ID_BOTH_DIR_INFORMATION, FileName) +
+                        nextInfo->FileNameLength;
+          KdPrint(
+              ("\n-----RtlMoveMemory---dir is %wZ----filename is %wZ-----\n\n",
+               fltname->Name, fileName));
+          RtlMoveMemory(info, (PUCHAR)info + info->NextEntryOffset, moveLength);
+        }
+      } else {
+        if (info->NextEntryOffset == 0) {
+          preInfo->NextEntryOffset = 0;
+          status = STATUS_SUCCESS;
+          retn = true;
+        } else {
+          preInfo->NextEntryOffset += info->NextEntryOffset;
+          offset = info->NextEntryOffset;
+        }
 
-  return STATUS_SUCCESS;
+        KdPrint(
+            ("\n-----RtlFillMemory---dir is %wZ----filename is %wZ-----\n\n",
+             fltname->Name, fileName));
+        RtlFillMemory(info, sizeof(FILE_ID_BOTH_DIR_INFORMATION), 0);
+      }
+
+      if (retn) {
+        return status;
+      }
+
+      info =
+          (PFILE_ID_BOTH_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+      continue;
+    }
+
+    offset = info->NextEntryOffset;
+    preInfo = info;
+    info =
+        (PFILE_ID_BOTH_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+    if (offset == 0) {
+      search = false;
+    }
+  } while (search);
+
+  return status;
 }
 
 NTSTATUS CleanFileIdFullDirectoryInformation(
     PFILE_ID_FULL_DIR_INFORMATION info,
     PFLT_FILE_NAME_INFORMATION fltname) {
-  UNICODE_STRING dirName{};
-  dirName.Buffer = info->FileName;
-  dirName.Length = (USHORT)info->FileNameLength;
-  dirName.MaximumLength = (USHORT)info->FileNameLength;
+  UNICODE_STRING fileName{};
+  PFILE_ID_FULL_DIR_INFORMATION preInfo = NULL, nextInfo = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
+  bool retn = false;
+  int moveLength, offset = 0;
 
-  KdPrint(("---dirname is %wZ---", dirName));
-  KdPrint(("---fltname is %wZ---\n", fltname->Name));
+  BOOLEAN search = true;
+  do {
+    fileName.Buffer = info->FileName;
+    fileName.Length = (USHORT)info->FileNameLength;
+    fileName.MaximumLength = (USHORT)info->FileNameLength;
 
-  return STATUS_SUCCESS;
+    if (IsHiddenDir(&fltname->Name, &fileName)) {
+      KdPrint(("\n---IsHiddenTarget!---\n\n"));
+      if (preInfo == NULL) {
+        if (info->NextEntryOffset == 0) {
+          status = STATUS_NO_MORE_ENTRIES;
+          retn = true;
+        } else {
+          nextInfo = (PFILE_ID_FULL_DIR_INFORMATION)((PUCHAR)info +
+                                                     info->NextEntryOffset);
+          moveLength = 0;
+          while (nextInfo->NextEntryOffset != 0) {
+            // 这里把所有的 entry 的偏移量加起来
+            moveLength += nextInfo->NextEntryOffset;
+            nextInfo =
+                (PFILE_ID_FULL_DIR_INFORMATION)((PUCHAR)nextInfo +
+                                                nextInfo->NextEntryOffset);
+          }
+
+          moveLength += FIELD_OFFSET(FILE_ID_FULL_DIR_INFORMATION, FileName) +
+                        nextInfo->FileNameLength;
+          KdPrint(
+              ("\n-----RtlMoveMemory---dir is %wZ----filename is %wZ-----\n\n",
+               fltname->Name, fileName));
+          RtlMoveMemory(info, (PUCHAR)info + info->NextEntryOffset, moveLength);
+        }
+      } else {
+        if (info->NextEntryOffset == 0) {
+          preInfo->NextEntryOffset = 0;
+          status = STATUS_SUCCESS;
+          retn = true;
+        } else {
+          preInfo->NextEntryOffset += info->NextEntryOffset;
+          offset = info->NextEntryOffset;
+        }
+
+        KdPrint(
+            ("\n-----RtlFillMemory---dir is %wZ----filename is %wZ-----\n\n",
+             fltname->Name, fileName));
+        RtlFillMemory(info, sizeof(FILE_ID_FULL_DIR_INFORMATION), 0);
+      }
+
+      if (retn) {
+        return status;
+      }
+
+      info =
+          (PFILE_ID_FULL_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+      continue;
+    }
+
+    offset = info->NextEntryOffset;
+    preInfo = info;
+    info =
+        (PFILE_ID_FULL_DIR_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+    if (offset == 0) {
+      search = false;
+    }
+  } while (search);
+
+  return status;
 }
 
 NTSTATUS CleanFileNamesInformation(PFILE_NAMES_INFORMATION info,
                                    PFLT_FILE_NAME_INFORMATION fltname) {
-  UNICODE_STRING dirName{};
-  dirName.Buffer = info->FileName;
-  dirName.Length = (USHORT)info->FileNameLength;
-  dirName.MaximumLength = (USHORT)info->FileNameLength;
+  UNICODE_STRING fileName{};
+  PFILE_NAMES_INFORMATION preInfo = NULL, nextInfo = NULL;
+  NTSTATUS status = STATUS_SUCCESS;
+  bool retn = false;
+  int moveLength, offset = 0;
 
-  KdPrint(("---dirname is %wZ---", dirName));
-  KdPrint(("---fltname is %wZ---\n", fltname->Name));
+  BOOLEAN search = true;
+  do {
+    fileName.Buffer = info->FileName;
+    fileName.Length = (USHORT)info->FileNameLength;
+    fileName.MaximumLength = (USHORT)info->FileNameLength;
 
-  UNICODE_STRING desDir = RTL_CONSTANT_STRING(
-      L"\\Device\\HarddiskVolume3\\Users\\WDKRemoteUser\\Desktop\\hidden "
-      L"folder");
+    if (IsHiddenDir(&fltname->Name, &fileName)) {
+      KdPrint(("\n---IsHiddenTarget!---\n\n"));
+      if (preInfo == NULL) {
+        if (info->NextEntryOffset == 0) {
+          status = STATUS_NO_MORE_ENTRIES;
+          retn = true;
+        } else {
+          nextInfo =
+              (PFILE_NAMES_INFORMATION)((PUCHAR)info +
+                                                   info->NextEntryOffset);
+          moveLength = 0;
+          while (nextInfo->NextEntryOffset != 0) {
+            // 这里把所有的 entry 的偏移量加起来
+            moveLength += nextInfo->NextEntryOffset;
+            nextInfo = (PFILE_NAMES_INFORMATION)((PUCHAR)nextInfo +
+                                                     nextInfo->NextEntryOffset);
+          }
 
-  if (RtlEqualUnicodeString(&desDir, &fltname->Name, false)) {
-    KdPrint(("\n*******FileNamesInformation:::ResetFolderContent****\n"));
-    RtlFillMemory(info, sizeof(PFILE_NAMES_INFORMATION), 0);
-  }
+          moveLength += FIELD_OFFSET(FILE_NAMES_INFORMATION, FileName) +
+                        nextInfo->FileNameLength;
+          KdPrint(
+              ("\n-----RtlMoveMemory---dir is %wZ----filename is %wZ-----\n\n",
+               fltname->Name, fileName));
+          RtlMoveMemory(info, (PUCHAR)info + info->NextEntryOffset, moveLength);
+        }
+      } else {
+        if (info->NextEntryOffset == 0) {
+          preInfo->NextEntryOffset = 0;
+          status = STATUS_SUCCESS;
+          retn = true;
+        } else {
+          preInfo->NextEntryOffset += info->NextEntryOffset;
+          offset = info->NextEntryOffset;
+        }
 
-  return STATUS_SUCCESS;
+        KdPrint(
+            ("\n-----RtlFillMemory---dir is %wZ----filename is %wZ-----\n\n",
+             fltname->Name, fileName));
+        RtlFillMemory(info, sizeof(FILE_NAMES_INFORMATION), 0);
+      }
+
+      if (retn) {
+        return status;
+      }
+
+      info = (PFILE_NAMES_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+      continue;
+    }
+
+    offset = info->NextEntryOffset;
+    preInfo = info;
+    info = (PFILE_NAMES_INFORMATION)((PUCHAR)info + info->NextEntryOffset);
+    if (offset == 0) {
+      search = false;
+    }
+  } while (search);
+
+  return status;
 }
 
 bool IsPreventProcess(PEPROCESS process) {
@@ -405,4 +754,24 @@ bool IsPreventProcess(PEPROCESS process) {
            wcsstr(imagePath->Buffer, L"\\SysWOW64\\cmd.exe") != NULL;
   }
   return false;
+}
+
+bool IsHiddenDir(PUNICODE_STRING dir, PUNICODE_STRING file) {
+  KdPrint(
+      ("******[IsHiddenDir]dir is %wZ---file is %wZ**********\n", dir, file));
+  UNICODE_STRING desDir = RTL_CONSTANT_STRING(
+      L"\\Device\\HarddiskVolume3\\Users\\WDKRemoteUser\\Desktop");
+  UNICODE_STRING desFile = RTL_CONSTANT_STRING(L"hidden folder");
+  // 隐藏此文件夹下所有文件和文件夹
+  UNICODE_STRING desDirFile = RTL_CONSTANT_STRING(
+      L"\\Device\\HarddiskVolume3\\Users\\WDKRemoteUser\\Desktop\\hidden "
+      L"folder");
+  UNICODE_STRING excludeFile1 = RTL_CONSTANT_STRING(L".");
+  UNICODE_STRING excludeFile2 = RTL_CONSTANT_STRING(L"..");
+
+  return (RtlEqualUnicodeString(&desDir, dir, false) &&
+          RtlEqualUnicodeString(&desFile, file, false)) ||
+         (RtlEqualUnicodeString(&desDirFile, dir, false) &&
+          !RtlEqualUnicodeString(&excludeFile1, file, false) &&
+          !RtlEqualUnicodeString(&excludeFile2, file, false));
 }
