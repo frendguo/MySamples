@@ -101,6 +101,7 @@
     <ClCompile Include="Helper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DelFileProtect.h" />
     <ClInclude Include="Helper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
