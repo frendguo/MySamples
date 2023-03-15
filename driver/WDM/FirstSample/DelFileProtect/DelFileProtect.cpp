@@ -302,9 +302,9 @@ bool IsHiddenDir(PUNICODE_STRING dir, PUNICODE_STRING file) {
   UNICODE_STRING excludeFile1 = RTL_CONSTANT_STRING(L".");
   UNICODE_STRING excludeFile2 = RTL_CONSTANT_STRING(L"..");
 
-  return (RtlEqualUnicodeString(&desDir, dir, false) &&
-          RtlEqualUnicodeString(&desFile, file, false)) ||
-         (RtlEqualUnicodeString(&desDirFile, dir, false) &&
-          !RtlEqualUnicodeString(&excludeFile1, file, false) &&
-          !RtlEqualUnicodeString(&excludeFile2, file, false));
+  return (RtlEqualUnicodeString(&desDir, dir, true) &&
+          RtlEqualUnicodeString(&desFile, file, true)) ||
+         (RtlEqualUnicodeString(&desDirFile, dir, true) &&
+          !RtlEqualUnicodeString(&excludeFile1, file, true) &&
+          !RtlEqualUnicodeString(&excludeFile2, file, true));
 }
