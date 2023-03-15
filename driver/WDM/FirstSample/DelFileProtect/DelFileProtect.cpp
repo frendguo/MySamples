@@ -32,6 +32,7 @@ FLT_POSTOP_CALLBACK_STATUS DirectoryControlPostCallback(
     FLT_POST_OPERATION_FLAGS Flags);
 
 bool IsPreventProcess(PEPROCESS process);
+bool isPreventFolder(PFLT_CALLBACK_DATA data);
 bool IsHiddenDir(PUNICODE_STRING dir, PUNICODE_STRING file);
 
 PFLT_FILTER g_filter;
@@ -167,7 +168,7 @@ FLT_PREOP_CALLBACK_STATUS FileSetInfomationPreCallback(
   auto info = (FILE_DISPOSITION_INFORMATION*)params.InfoBuffer;
   if (info->DeleteFile) {
     PEPROCESS eProcess = PsGetThreadProcess(Data->Thread);
-    if (IsPreventProcess(eProcess)) {
+    if (IsPreventProcess(eProcess) || isPreventFolder(Data)) {
       KdPrint(("-----Prevent delete operation."));
       Data->IoStatus.Status = STATUS_ACCESS_DENIED;
       return FLT_PREOP_COMPLETE;
@@ -287,6 +288,35 @@ bool IsPreventProcess(PEPROCESS process) {
            wcsstr(imagePath->Buffer, L"\\SysWOW64\\cmd.exe") != NULL;
   }
   return false;
+}
+
+bool isPreventFolder(PFLT_CALLBACK_DATA data) {
+  PFLT_FILE_NAME_INFORMATION fileInfo;
+  UNICODE_STRING desDirFile = RTL_CONSTANT_STRING(
+      L"\\Device\\HarddiskVolume3\\Users\\WDKRemoteUser\\Desktop\\test11\\");
+  NTSTATUS status = FltGetFileNameInformation(
+      data, FLT_FILE_NAME_QUERY_DEFAULT | FLT_FILE_NAME_NORMALIZED, &fileInfo);
+  if (!NT_SUCCESS(status)) {
+    KdPrint(("----[isPreventFolder]Fail to get filename infomation."));
+    return false;
+  }
+
+  // 将路径规范化
+  status = FltParseFileNameInformation(fileInfo);
+  if (!NT_SUCCESS(status)) {
+    KdPrint(("----[isPreventFolder]Fail to parse filename infomation."));
+    return false;
+  }
+
+  UNICODE_STRING path{};
+  // path = volume + share + directory
+  path.Length = path.MaximumLength = fileInfo->Volume.Length +
+                                     fileInfo->Share.Length +
+                                     fileInfo->ParentDir.Length;
+  path.Buffer = fileInfo->Volume.Buffer;
+  KdPrint(("----[isPreventFolder]path is %wZ------\n", path));
+
+  return RtlEqualUnicodeString(&desDirFile, &path, true);
 }
 
 bool IsHiddenDir(PUNICODE_STRING dir, PUNICODE_STRING file) {
