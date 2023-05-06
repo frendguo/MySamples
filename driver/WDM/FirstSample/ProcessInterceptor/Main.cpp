@@ -1,4 +1,5 @@
-#include "Main.h"
+﻿#include "Main.h"
+
 
 #define DRIVER_TAG 'pint'
 
@@ -143,6 +144,8 @@ void OnProcessCreateCloseNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_
 
 	UCHAR* procName = PsGetProcessImageFileName(Process);
 	KdPrint(("[%s] is created.\n", procName));
+	PUNICODE_STRING imageName;
+	SeLocateProcessImageName(Process, &imageName);
 	// 2. 如果待阻止的列表为空，直接返回
 	if (g_Globals.ItemCount <= 0) {
 		return;
