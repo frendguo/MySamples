@@ -8,58 +8,10 @@ typedef NTSTATUS(*PsResumeProcess)(PEPROCESS Process);
 
 UNICODE_STRING g_unisntallStr;
 
-bool g_isRegisteThreadNotify = false;
-
 extern "C" NTKERNELAPI
 UCHAR * PsGetProcessImageFileName(__in PEPROCESS Process);
 PsSuspendProcess fPsSuspendProcess;
 PsResumeProcess fPsResumeProcess;
-
-void OnCreateThreadNotify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create) {
-    UNREFERENCED_PARAMETER(ThreadId);
-    if (!Create) {
-        return;
-    }
-    // 获取进程对象
-    PEPROCESS process;
-    auto status = PsLookupProcessByProcessId(ProcessId, &process);
-    if (!NT_SUCCESS(status)) {
-        KdPrint(("Faild to get process object. (0X%08X)\n", status));
-        return;
-    }
-    // 获取进程名
-    UCHAR* procName = PsGetProcessImageFileName(process);
-    if (procName == nullptr) {
-        return;
-    }
-    auto len = strlen((char*)procName);
-    if (len != g_unisntallStr.Length) {
-        return;
-    }
-    if (!strncmp((char*)(*(g_unisntallStr.Buffer)), (char*)procName, len)) {
-        // 进程就是 uninstall.exe
-        //PETHREAD thread;
-        /*status = PsLookupThreadByThreadId(ThreadId, &thread);
-        if (!NT_SUCCESS(status)) {
-            KdPrint(("Faild to get thread object. (0X%08X)\n", status));
-            return;
-        }*/
-
-
-
-
-        // 去掉线程监控
-        if (g_isRegisteThreadNotify) {
-            // 取消注册线程创建回调
-            status = PsRemoveCreateThreadNotifyRoutine(OnCreateThreadNotify);
-            if (!NT_SUCCESS(status)) {
-                KdPrint(("[ThreadCreateNotify]Fail to remove thread notify. (0X%08X)\n", status));
-                return;
-            }
-            g_isRegisteThreadNotify = false;
-        }
-    }
-}
 
 void OnProcessCreateCloseNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo) {
     UNREFERENCED_PARAMETER(ProcessId);
@@ -162,10 +114,6 @@ UninstallPreventCreateClose(
 
 void DriverUnload(PDRIVER_OBJECT driverObject) {
     PsSetCreateProcessNotifyRoutineEx(OnProcessCreateCloseNotify, true);
-    if (g_isRegisteThreadNotify) {
-        // 取消注册线程创建回调
-        PsRemoveCreateThreadNotifyRoutine(OnCreateThreadNotify);
-    }
     UNICODE_STRING symbolName = RTL_CONSTANT_STRING(L"\\??\\UninstallPrevent");
     IoDeleteSymbolicLink(&symbolName);
     IoDeleteDevice(driverObject->DeviceObject);
