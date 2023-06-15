@@ -20,7 +20,7 @@ void OnProcessCreateCloseNotify(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_
     if (!CreateInfo) {
         return;
     }
-
+    // SeLocateProcessImageName(Process, &imageName); // 通过此方式获取完整路径
     UCHAR* procName = PsGetProcessImageFileName(Process);
     if (procName == nullptr) {
         return;
