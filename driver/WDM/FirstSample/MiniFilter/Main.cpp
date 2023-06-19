@@ -26,6 +26,7 @@ PFLT_FILTER g_filter;
 
 // error LNK2019: unresolved external symbol FltRegisterFilter
 // https://stackoverflow.com/questions/72504346/fltregisterfilter-referenced-in-function-driverentry-in-filter-obj
+// $(DDK_LIB_PATH)\fltMgr.lib
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject,
                                 PUNICODE_STRING RegisterPath) {
   UNREFERENCED_PARAMETER(RegisterPath);
