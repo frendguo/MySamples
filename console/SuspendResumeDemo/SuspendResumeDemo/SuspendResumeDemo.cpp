@@ -13,13 +13,14 @@ void test() {
 
 int main()
 {
+    DebugBreak();
     auto handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)test, NULL, 0, NULL);
 
     if (handle == NULL) {
         printf("CreateThread failed (%d)\n", GetLastError());
         return 1;
     }
-
+    
     Sleep(3000); // 让线程运行 3 秒
 
     if (SuspendThread(handle) == -1) {
