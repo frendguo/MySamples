@@ -17,7 +17,7 @@ BOOL WINAPI MyBitBlt(
     int     nYSrc,
     DWORD   dwRop)
 {
-    MessageBox(NULL, L"BitBlt Hooked...", L"BitBlt", MB_OK);
+    // MessageBox(NULL, L"BitBlt Hooked...", L"BitBlt", MB_OK);
     return TRUE;
 }
 
@@ -29,8 +29,6 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        break;
-    case DLL_THREAD_ATTACH:
         DetourRestoreAfterWith();
 
         DetourTransactionBegin();
@@ -38,12 +36,16 @@ BOOL APIENTRY DllMain(HMODULE hModule,
         DetourAttach(&(PVOID&)TrueBitBlt, MyBitBlt);
         DetourTransactionCommit();
         break;
+    case DLL_THREAD_ATTACH:
+        break;
     case DLL_THREAD_DETACH:
+        break;
     case DLL_PROCESS_DETACH:
-        /*DetourTransactionBegin();
+        DetourTransactionBegin();
+
         DetourUpdateThread(GetCurrentThread());
         DetourDetach(&(PVOID&)TrueBitBlt, MyBitBlt);
-        DetourTransactionCommit();*/
+        DetourTransactionCommit();
         break;
     }
     return TRUE;

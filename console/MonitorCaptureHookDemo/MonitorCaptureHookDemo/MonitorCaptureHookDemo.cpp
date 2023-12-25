@@ -1,10 +1,11 @@
 ﻿#include <iostream>
+#include <vector>
 #include <Windows.h>
+#include <tlhelp32.h>
 
-int main()
-{
+int InjectProcess(DWORD pid) {
     LPCSTR dllPath = "D:\\HookDll.dll";
-    DWORD pid = 48240;
+
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
     if (hProcess == NULL)
     {
@@ -32,6 +33,47 @@ int main()
     VirtualFreeEx(hProcess, pDllPath, strlen(dllPath) + 1, MEM_RELEASE);
     CloseHandle(hThread);
     CloseHandle(hProcess);
+
+    return 0;
+}
+
+std::vector<DWORD> FindProcessIdByName(LPCWSTR name) {
+    std::vector<DWORD> pids;
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE)
+    {
+        std::cout << "CreateToolhelp32Snapshot failed--" << GetLastError() << std::endl;
+        return pids;
+    }
+
+    PROCESSENTRY32 pe;
+    pe.dwSize = sizeof(PROCESSENTRY32);
+    if (!Process32First(hSnapshot, &pe))
+    {
+        std::cout << "Process32First failed--" << GetLastError() << std::endl;
+        CloseHandle(hSnapshot);
+        return pids;
+    }
+
+    do
+    {
+        if (wcscmp(pe.szExeFile, name) == 0)
+        {
+            pids.push_back(pe.th32ProcessID);
+        }
+    } while (Process32Next(hSnapshot, &pe));
+
+    CloseHandle(hSnapshot);
+    return pids;
+}
+
+int main()
+{
+    auto pids = FindProcessIdByName(L"snipaste.exe");
+    for (auto pid : pids) {
+        std::cout << "Injecting process " << pid << std::endl;
+        InjectProcess(pid);
+    }
 
     return 0;
 }
