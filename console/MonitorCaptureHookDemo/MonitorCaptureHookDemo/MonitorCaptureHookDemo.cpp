@@ -4,13 +4,20 @@
 #include <tlhelp32.h>
 
 int InjectProcess(DWORD pid) {
-    LPCSTR dllPath = "D:\\HookDll.dll";
+    LPCSTR x64DllPath = "D:\\HookDll.dll";
+    LPCSTR x86DllPath = "D:\\x86\\HookDll.dll";
 
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
     if (hProcess == NULL)
     {
         std::cout << "OpenProcess failed--" << GetLastError() << std::endl;
         return 1;
+    }
+    LPCSTR dllPath = x64DllPath;
+    BOOL bIsWow64 = FALSE;
+    IsWow64Process(hProcess, &bIsWow64);
+    if (bIsWow64) {
+        dllPath = x86DllPath;
     }
 
     LPVOID pDllPath = VirtualAllocEx(hProcess, 0, strlen(dllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
@@ -69,7 +76,7 @@ std::vector<DWORD> FindProcessIdByName(LPCWSTR name) {
 
 int main()
 {
-    auto pids = FindProcessIdByName(L"snipaste.exe");
+    auto pids = FindProcessIdByName(L"WeChatStore.exe");
     for (auto pid : pids) {
         std::cout << "Injecting process " << pid << std::endl;
         InjectProcess(pid);
