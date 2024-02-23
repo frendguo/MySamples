@@ -23,5 +23,11 @@
     <ClInclude Include="KDmpStruct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="FileMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -306,7 +306,6 @@ struct CONTEXT_STRUCT {
         //
 
         if (MxCsr != MxCsr2) {
-            printf("CONTEXT::MxCsr doesn't match MxCsr2.\n");
             return false;
         }
 
@@ -436,4 +435,37 @@ struct HEADER64 {
 
         return true;
     }
+};
+
+union MMPTE_HARDWARE {
+    struct {
+        uint64_t Present : 1;
+        uint64_t Write : 1;
+        uint64_t UserAccessible : 1;
+        uint64_t WriteThrough : 1;
+        uint64_t CacheDisable : 1;
+        uint64_t Accessed : 1;
+        uint64_t Dirty : 1;
+        uint64_t LargePage : 1;
+        uint64_t Available : 4;
+        uint64_t PageFrameNumber : 36;
+        uint64_t ReservedForHardware : 4;
+        uint64_t ReservedForSoftware : 11;
+        uint64_t NoExecute : 1;
+    } u;
+    uint64_t AsUINT64;
+    constexpr MMPTE_HARDWARE(const uint64_t Value) : AsUINT64(Value) {}
+};
+
+union VIRTUAL_ADDRESS {
+    struct {
+        uint64_t Offset : 12;
+        uint64_t PtIndex : 9;
+        uint64_t PdIndex : 9;
+        uint64_t PdPtIndex : 9;
+        uint64_t Pml4Index : 9;
+        uint64_t Reserved : 16;
+    } u;
+    uint64_t AsUINT64;
+    constexpr VIRTUAL_ADDRESS(const uint64_t Value) : AsUINT64(Value) {}
 };
