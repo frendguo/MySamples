@@ -14,7 +14,7 @@
 /// </summary>
 /// <returns></returns>
 NTSTATUS CombinePhysicalMemory() {
-    MEMORY_COMBINE_INFORMATION_EX combineInfo = {0};
+    MEMORY_COMBINE_INFORMATION_EX combineInfo = { 0 };
     return NtSetSystemInformation(SystemCombinePhysicalMemoryInformation, &combineInfo, sizeof(combineInfo));
 }
 
@@ -189,18 +189,9 @@ void GetMemoryInfo(PMEMORY_INFO memInfo) {
     }
 }
 
-int main()
-{
-    NTSTATUS status = ERROR_SUCCESS;
-
-    EnablePrivilege();
-
-    // 获取内存信息
-    MEMORY_INFO beforMemInfo = { 0 };
-    GetMemoryInfo(&beforMemInfo);
-
+void cleanMemory() {
     // 1. 清理系统文件缓存
-    status = CleanSystemFileCache();
+    NTSTATUS status = CleanSystemFileCache();
     if (NT_SUCCESS(status)) {
         printf("CleanSystemFileCache success\n");
     }
@@ -262,25 +253,138 @@ int main()
     else {
         printf("CombinePhysicalMemory failed, status: 0x%08X\n", status);
     }
+}
+
+int main()
+{
+    NTSTATUS status = ERROR_SUCCESS;
+
+    EnablePrivilege();
+    while (true)
+    {
+
+
+
+        std::cout << "Memory Clean Demo" << std::endl;
+        std::cout << "Please input index to start..." << std::endl;
+        std::cout << "1. CleanSystemFileCache" << std::endl;
+        std::cout << "2. SystemEmptyWorkingSet" << std::endl;
+        std::cout << "3. PurgeLowPriorityStandbyList" << std::endl;
+        std::cout << "4. PurgeStandbyList" << std::endl;
+        std::cout << "5. FlushModifyedList" << std::endl;
+        std::cout << "6. FlushRegistry" << std::endl;
+        std::cout << "7. CombinePhysicalMemory" << std::endl;
+        std::cout << "8. All" << std::endl;
+
+        int index = 0;
+        std::cin >> index;
+        // 获取内存信息
+        MEMORY_INFO beforMemInfo = { 0 };
+        GetMemoryInfo(&beforMemInfo);
+
+        switch (index)
+        {
+        case 1:
+            // 1. 清理系统文件缓存
+            status = CleanSystemFileCache();
+            if (NT_SUCCESS(status)) {
+                printf("CleanSystemFileCache success\n");
+            }
+            else {
+                // 如果失败，打印提示，并输出 status
+                printf("CleanSystemFileCache failed, status: 0x%08X\n", status);
+            }
+            break;
+        case 2:
+            // 2. 清空进程工作集
+            status = SystemEmptyWorkingSet();
+            if (NT_SUCCESS(status)) {
+                printf("SystemEmptyWorkingSet success\n");
+            }
+            else {
+                printf("SystemEmptyWorkingSet failed, status: 0x%08X\n", status);
+            }
+            break;
+        case 3:
+            // 3. 清理低优先级的等待列表(standby list)
+            status = PurgeLowPriorityStandbyList();
+            if (NT_SUCCESS(status)) {
+                printf("PurgeLowPriorityStandbyList success\n");
+            }
+            else {
+                printf("PurgeLowPriorityStandbyList failed, status: 0x%08X\n", status);
+            }
+            break;
+
+        case 4:
+            // 4. 清理内存中的等待列表(standby list)
+            status = PurgeStandbyList();
+            if (NT_SUCCESS(status)) {
+                printf("PurgeStandbyList success\n");
+            }
+            else {
+                printf("PurgeStandbyList failed, status: 0x%08X\n", status);
+            }
+            break;
+        case 5:
+            // 5. 整理内存修改列表（modify list）
+            status = FlushModifyedList();
+            if (NT_SUCCESS(status)) {
+                printf("FlushModifyedList success\n");
+            }
+            else {
+                printf("FlushModifyedList failed, status: 0x%08X\n", status);
+            }
+            break;
+        case 6:
+            // 6. 将注册表 flush 到磁盘
+            status = FlushRegistry();
+            if (NT_SUCCESS(status)) {
+                printf("FlushRegistry success\n");
+            }
+            else {
+                printf("FlushRegistry failed, status: 0x%08X\n", status);
+            }
+            break;
+        case 7:
+            // 7. 组合多个物理页面
+            status = CombinePhysicalMemory();
+            if (NT_SUCCESS(status)) {
+                printf("CombinePhysicalMemory success\n");
+            }
+            else {
+                printf("CombinePhysicalMemory failed, status: 0x%08X\n", status);
+            }
+            break;
+        case 8:
+            cleanMemory();
+            break;
+        default:
+            std::cout << "Invalid index" << std::endl;
+            break;
+        }
+
+        printf("\n");
+        printf("Sleep 2s...\n");
+        Sleep(2 * 1000);
+
+        // 获取内存信息
+        MEMORY_INFO afterMemInfo = { 0 };
+        GetMemoryInfo(&afterMemInfo);
+
+        printf("Clear Result:\n");
+        printf("Physical Memory:\n");
+        std::cout << beforMemInfo.physical_memory.used_bytes / 1024.0 / 1024.0 << "MB -> " << afterMemInfo.physical_memory.used_bytes / 1024.0 / 1024.0 << "MB" << std::endl;
+        std::cout << beforMemInfo.physical_memory.percent << "% -> " << afterMemInfo.physical_memory.percent << "%" << std::endl;
+        printf("Virtual Memory:\n");
+        std::cout << beforMemInfo.virtual_memory.used_bytes / 1024.0 / 1024.0 << "MB -> " << afterMemInfo.virtual_memory.used_bytes / 1024.0 / 1024.0 << "MB" << std::endl;
+        printf("System Cache:\n");
+        std::cout << beforMemInfo.system_cache.used_bytes / 1024.0 / 1024.0 << "MB -> " << afterMemInfo.system_cache.used_bytes / 1024.0 / 1024.0 << "MB" << std::endl;
+        system("pause");
+
+        // 清空输出
+        system("cls");
+    }
     
-    printf("\n");
-    printf("Sleep 2s...\n");
-    Sleep(2 * 1000);
-
-    // 获取内存信息
-    MEMORY_INFO afterMemInfo = { 0 };
-    GetMemoryInfo(&afterMemInfo);
-
-    printf("Clear Result:\n");
-    printf("Physical Memory:\n");
-    std::cout << beforMemInfo.physical_memory.used_bytes / 1024.0 / 1024.0 << "MB -> " << afterMemInfo.physical_memory.used_bytes / 1024.0 / 1024.0 << "MB" << std::endl;
-    std::cout << beforMemInfo.physical_memory.percent << "% -> " << afterMemInfo.physical_memory.percent << "%" << std::endl;
-    printf("Virtual Memory:\n");
-    std::cout << beforMemInfo.virtual_memory.used_bytes / 1024.0 / 1024.0 << "MB -> " << afterMemInfo.virtual_memory.used_bytes / 1024.0 / 1024.0 << "MB" << std::endl;
-    printf("System Cache:\n");
-    std::cout << beforMemInfo.system_cache.used_bytes / 1024.0 / 1024.0 << "MB -> " << afterMemInfo.system_cache.used_bytes / 1024.0 / 1024.0 << "MB" << std::endl;
-
-    system("pause");
-
     return 0;
 }
