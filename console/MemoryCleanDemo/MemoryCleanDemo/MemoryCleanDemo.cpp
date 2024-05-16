@@ -262,9 +262,6 @@ int main()
     EnablePrivilege();
     while (true)
     {
-
-
-
         std::cout << "Memory Clean Demo" << std::endl;
         std::cout << "Please input index to start..." << std::endl;
         std::cout << "1. CleanSystemFileCache" << std::endl;
