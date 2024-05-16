@@ -279,6 +279,8 @@ void ByNtRemoveProcessDebugResumeProcess(DWORD dwProcessId, HANDLE hDebugObject)
 
 #pragma region JobObjectFreeze
 
+#define JOB_OBJECT_OPERATION_FREEZE 1
+
 HANDLE ByJobObjectFreeze(DWORD dwProcessId)
 {
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwProcessId);
@@ -297,7 +299,7 @@ HANDLE ByJobObjectFreeze(DWORD dwProcessId)
     }
 
     JOBOBJECT_FREEZE_INFORMATION jfi;
-    jfi.Flags = 1;
+    jfi.Flags = JOB_OBJECT_OPERATION_FREEZE;
     jfi.Freeze = true;
 
     if (!NT_SUCCESS(NtSetInformationJobObject(hJob, (JOBOBJECTINFOCLASS)18, &jfi, sizeof(jfi))))
@@ -331,7 +333,7 @@ void ByJobObjectUnFreeze(DWORD dwProcessId, HANDLE hObj) {
     }
 
     JOBOBJECT_FREEZE_INFORMATION jfi;
-    jfi.Flags = 1;
+    jfi.Flags = JOB_OBJECT_OPERATION_FREEZE;
     jfi.Freeze = false;
 
     if (!NT_SUCCESS(NtSetInformationJobObject(hObj, (JOBOBJECTINFOCLASS)18, &jfi, sizeof(jfi))))
