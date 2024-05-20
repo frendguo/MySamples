@@ -302,6 +302,7 @@ HANDLE ByJobObjectFreeze(DWORD dwProcessId)
     jfi.Flags = JOB_OBJECT_OPERATION_FREEZE;
     jfi.Freeze = true;
 
+    // (JOBOBJECTINFOCLASS)18 <-> JobObjectFreezeInformation
     if (!NT_SUCCESS(NtSetInformationJobObject(hJob, (JOBOBJECTINFOCLASS)18, &jfi, sizeof(jfi))))
     {
         std::cout << "SetInformationJobObject failed" << std::endl;
@@ -335,7 +336,8 @@ void ByJobObjectUnFreeze(DWORD dwProcessId, HANDLE hObj) {
     JOBOBJECT_FREEZE_INFORMATION jfi;
     jfi.Flags = JOB_OBJECT_OPERATION_FREEZE;
     jfi.Freeze = false;
-
+    
+    // (JOBOBJECTINFOCLASS)18 <-> JobObjectFreezeInformation
     if (!NT_SUCCESS(NtSetInformationJobObject(hObj, (JOBOBJECTINFOCLASS)18, &jfi, sizeof(jfi))))
     {
         std::cout << "SetInformationJobObject failed" << std::endl;
