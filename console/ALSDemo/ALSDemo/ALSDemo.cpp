@@ -1,73 +1,114 @@
-﻿// ALSDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-#include <sensorsapi.h>
+﻿#include <sensorsapi.h>
 #include <sensors.h>
+#include <atlbase.h> // 用于CComObject和COM相关功能
 #include <iostream>
 
-int main()
+// 定义事件监听器类
+class CSensorEventListener : public ISensorEvents
 {
-    // 初始化COM库
+public:
+    ULONG _cRef;
+
+    CSensorEventListener() : _cRef(1) {}
+
+    // IUnknown方法
+    IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv)
+    {
+        if (ppv == nullptr) {
+            return E_POINTER;
+        }
+        *ppv = nullptr;
+        if (riid == __uuidof(ISensorEvents)) {
+            *ppv = static_cast<ISensorEvents*>(this);
+        }
+        else if (riid == IID_IUnknown) {
+            *ppv = static_cast<IUnknown*>(this);
+        }
+        if (*ppv != nullptr) {
+            AddRef();
+            return S_OK;
+        }
+        return E_NOINTERFACE;
+    }
+    IFACEMETHODIMP_(ULONG) AddRef()
+    {
+        return InterlockedIncrement(&_cRef);
+    }
+    IFACEMETHODIMP_(ULONG) Release()
+    {
+        ULONG cRef = InterlockedDecrement(&_cRef);
+        if (0 == cRef) {
+            delete this;
+        }
+        return cRef;
+    }
+
+    // ISensorEvents方法
+    IFACEMETHODIMP OnEvent(ISensor* pSensor, REFGUID eventID, IPortableDeviceValues* pEventData)
+    {
+        std::cout << "Event received" << std::endl;
+        // 事件处理代码
+        return S_OK;
+    }
+    IFACEMETHODIMP OnDataUpdated(ISensor* pSensor, ISensorDataReport* pNewData)
+    {
+        PROPVARIANT varValue;
+        PropVariantInit(&varValue);
+        pNewData->GetSensorValue(SENSOR_DATA_TYPE_LIGHT_LEVEL_LUX, &varValue);
+        std::cout << "Light level: " << varValue.fltVal << " lux" << std::endl;
+        // 数据更新处理代码，例如读取亮度值
+        return S_OK;
+    }
+    IFACEMETHODIMP OnLeave(REFSENSOR_ID sensorID) { return S_OK; }
+    IFACEMETHODIMP OnStateChanged(ISensor* pSensor, SensorState state) { return S_OK; }
+};
+
+void RegisterSensorEvent()
+{
+    // 初始化COM
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    ISensorManager* pSensorManager = NULL;
 
     // 创建传感器管理器实例
-    ISensorManager* pSensorManager = NULL;
-    HRESULT hr = CoCreateInstance(CLSID_SensorManager, NULL, CLSCTX_INPROC_SERVER, IID_ISensorManager, reinterpret_cast<void**>(&pSensorManager));
-
-    if (SUCCEEDED(hr)) {
-        // 枚举环境光传感器
+    HRESULT hr = CoCreateInstance(CLSID_SensorManager, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pSensorManager));
+    if (SUCCEEDED(hr))
+    {
         ISensorCollection* pSensorCollection = NULL;
         hr = pSensorManager->GetSensorsByType(SENSOR_TYPE_AMBIENT_LIGHT, &pSensorCollection);
-
-        if (SUCCEEDED(hr)) {
+        if (SUCCEEDED(hr))
+        {
             ULONG count = 0;
             pSensorCollection->GetCount(&count);
-
-            if (count > 0) {
-                // 获取第一个环境光传感器
+            if (count > 0)
+            {
                 ISensor* pLightSensor = NULL;
                 hr = pSensorCollection->GetAt(0, &pLightSensor);
-
-                if (SUCCEEDED(hr)) {
-                    // 读取环境光传感器的数据
-                    ISensorDataReport* pSensorDataReport = NULL;
-                    hr = pLightSensor->GetData(&pSensorDataReport);
-
-                    if (SUCCEEDED(hr)) {
-                        PROPVARIANT varValue;
-                        PropVariantInit(&varValue);
-
-                        // 获取光照强度
-                        hr = pSensorDataReport->GetSensorValue(SENSOR_DATA_TYPE_LIGHT_LEVEL_LUX, &varValue);
-
-                        if (SUCCEEDED(hr)) {
-                            std::cout << "current light level lux: " << varValue.fltVal << " lux" << std::endl;
-                        }
-
-                        PropVariantClear(&varValue);
-                        pSensorDataReport->Release();
+                if (SUCCEEDED(hr))
+                {
+                    // 创建事件监听器实例并注册
+                    CSensorEventListener* pEventListener = new CSensorEventListener();
+                    hr = pLightSensor->SetEventSink(pEventListener);
+                    if (SUCCEEDED(hr))
+                    {
+                        std::cout << "Event sink registered" << std::endl;
                     }
-
                     pLightSensor->Release();
                 }
             }
-
             pSensorCollection->Release();
         }
-
         pSensorManager->Release();
     }
-
     CoUninitialize();
-    return 0;
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+int main()
+{
+    RegisterSensorEvent();
+    
+    while (true)
+    {
+        Sleep(1000);
+    }
+    return 0;
+}

@@ -616,6 +616,13 @@ void ExecuteStressTesting(int methodIndex)
             continue;
         }
 
+        // 过滤掉自身
+        auto selfId = GetCurrentProcessId();
+        if (pe32.th32ProcessID == selfId) {
+            std::cout << "Skip self process: " << pe32.th32ProcessID << "-" << std::endl;
+            continue;
+        }
+
         // 执行挂起操作
         ExecuteSuspendProcess(pe32.th32ProcessID, methodIndex);
 
@@ -699,8 +706,15 @@ int main()
         }
         case 2:
         {
-            // 自动化压力测试
-            ExecuteStressTesting(methodIndex);
+            while (true)
+            {
+                // 自动化压力测试
+                ExecuteStressTesting(methodIndex);
+
+                std::cout << "---------ready start next streess test.------------" << std::endl;
+                Sleep(1000);
+            }
+            
             break;
         }
         default:

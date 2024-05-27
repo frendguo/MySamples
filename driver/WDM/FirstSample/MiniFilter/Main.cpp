@@ -156,6 +156,8 @@ FLT_PREOP_CALLBACK_STATUS FileReadPreCallback(PFLT_CALLBACK_DATA Data,
             // 在这里，你可以访问 nameInfo->Name 等字段来获取你想要的路径或文件名部分
             KdPrint(("-----[MiniFilter]File path: %wZ\n", &nameInfo->Name));
         }
+
+        FltReleaseFileNameInformation(nameInfo);
     }
 
     HANDLE processId = PsGetThreadProcessId(Data->Thread);

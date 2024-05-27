@@ -1,4 +1,4 @@
-// WmiEventDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
+﻿// WmiEventDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
 #include "eventsink.h"
@@ -120,21 +120,21 @@ int main(int iArgCnt, char** argv)
     // Receive event notifications -----------------------------
 
     // Use an unsecured apartment for security
-    IUnsecuredApartment* pUnsecApp = NULL;
+   /* IUnsecuredApartment* pUnsecApp = NULL;
 
     hres = CoCreateInstance(CLSID_UnsecuredApartment, NULL,
         CLSCTX_LOCAL_SERVER, IID_IUnsecuredApartment,
-        (void**)&pUnsecApp);
+        (void**)&pUnsecApp);*/
 
     EventSink* pSink = new EventSink;
     pSink->AddRef();
 
-    IUnknown* pStubUnk = NULL;
+    /*IUnknown* pStubUnk = NULL;
     pUnsecApp->CreateObjectStub(pSink, &pStubUnk);
 
     IWbemObjectSink* pStubSink = NULL;
     pStubUnk->QueryInterface(IID_IWbemObjectSink,
-        (void**)&pStubSink);
+        (void**)&pStubSink);*/
 
     // The ExecNotificationQueryAsync method will call
     // The EventQuery::Indicate method when an event occurs
@@ -143,7 +143,7 @@ int main(int iArgCnt, char** argv)
         _bstr_t("SELECT * FROM WmiMonitorBrightnessEvent"),
         WBEM_FLAG_SEND_STATUS,
         NULL,
-        pStubSink);
+        pSink);
 
     // Check for errors.
     if (FAILED(hres))
@@ -152,28 +152,31 @@ int main(int iArgCnt, char** argv)
             "with = 0x%X\n", hres);
         pSvc->Release();
         pLoc->Release();
-        pUnsecApp->Release();
-        pStubUnk->Release();
+        //pUnsecApp->Release();
+        //pStubUnk->Release();
         pSink->Release();
-        pStubSink->Release();
+        //pStubSink->Release();
         CoUninitialize();
         return 1;
     }
 
+    // 打印当前线程 id
+    printf("current thread id: %d\n", GetCurrentThreadId());
+
     // Wait for the event
     Sleep(10000 * 60);
 
-    hres = pSvc->CancelAsyncCall(pStubSink);
+    hres = pSvc->CancelAsyncCall(pSink);
 
     // Cleanup
     // ========
 
     pSvc->Release();
     pLoc->Release();
-    pUnsecApp->Release();
-    pStubUnk->Release();
+    // pUnsecApp->Release();
+    //pStubUnk->Release();
     pSink->Release();
-    pStubSink->Release();
+    //pStubSink->Release();
     CoUninitialize();
 
     return 0;   // Program successfully completed.

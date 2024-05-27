@@ -31,6 +31,7 @@ HRESULT EventSink::Indicate(long lObjectCount,
 {
     HRESULT hr = S_OK;
 
+    printf("[Indicate]current thread id: %d\n", GetCurrentThreadId());
     for (int i = 0; i < lObjectCount; i++)
     {
         printf("Event occurred\n");
@@ -41,7 +42,7 @@ HRESULT EventSink::Indicate(long lObjectCount,
         hr = pObj->Get(L"Brightness", 0, &vtProp, 0, 0);
 
         if (SUCCEEDED(hr)) {
-            printf("brightness changed: %d", (int)vtProp.bVal);
+            printf("brightness changed: %d\n", (int)vtProp.bVal);
         }
 
         // 清理VARIANT
