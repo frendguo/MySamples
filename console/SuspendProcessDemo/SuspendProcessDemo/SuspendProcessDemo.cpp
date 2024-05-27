@@ -1,4 +1,4 @@
-// SuspendProcessDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
+﻿// SuspendProcessDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
 #include <iostream>
@@ -6,6 +6,17 @@
 #include <phnt.h>
 #include <tlhelp32.h>
 #include <conio.h>
+#include <psapi.h>
+#include <tchar.h>
+
+#include "ProcessInfo.h"
+
+#pragma comment(lib, "Psapi.lib")
+
+#define PHNT_VERSION 113
+
+HANDLE hDebugObject = nullptr;
+HANDLE hJob = nullptr;
 
 #pragma region NtSuspendProcess
 
@@ -336,7 +347,7 @@ void ByJobObjectUnFreeze(DWORD dwProcessId, HANDLE hObj) {
     JOBOBJECT_FREEZE_INFORMATION jfi;
     jfi.Flags = JOB_OBJECT_OPERATION_FREEZE;
     jfi.Freeze = false;
-    
+
     // (JOBOBJECTINFOCLASS)18 <-> JobObjectFreezeInformation
     if (!NT_SUCCESS(NtSetInformationJobObject(hObj, (JOBOBJECTINFOCLASS)18, &jfi, sizeof(jfi))))
     {
@@ -352,15 +363,300 @@ void ByJobObjectUnFreeze(DWORD dwProcessId, HANDLE hObj) {
 
 #pragma endregion
 
+#pragma region NtCreateProcessStateChange
+
+void ByProcessStateChangeFreeze(DWORD processId) {
+
+}
+
+#pragma endregion
+
+void ExecuteSuspendProcess(DWORD dwProcessId, int methodIndex)
+{
+    switch (methodIndex)
+    {
+    case 1:
+    {
+        ByNtSuspendProcess(dwProcessId);
+        break;
+    }
+    case 2:
+    {
+        BySnapshotAndSuspendThread(dwProcessId);
+        break;
+    }
+    case 3:
+    {
+        ByNtGetNextThreadAndSuspendThread(dwProcessId);
+        break;
+    }
+    case 4: {
+        hDebugObject = ByNtCreateDebugObjectSuspendProcess(dwProcessId);
+        if (hDebugObject == nullptr)
+        {
+            break;
+        }
+        break;
+    }
+    case 5: {
+        HANDLE hJob = ByJobObjectFreeze(dwProcessId);
+        if (hJob == nullptr)
+        {
+            break;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void ExecuteReusmeProcess(DWORD dwProcessId, int methodIndex) {
+    switch (methodIndex)
+    {
+    case 1:
+    {
+        ByNtResumeProcess(dwProcessId);
+
+        break;
+    }
+    case 2:
+    {
+        BySnapshotAndResumeThread(dwProcessId);
+
+        break;
+    }
+    case 3:
+    {
+        ByNtGetNextThreadAndResumeThread(dwProcessId);
+
+        break;
+    }
+    case 4: {
+        if (hDebugObject == nullptr)
+        {
+            std::cout << "Debug object is null. Please suspend process first." << std::endl;
+            break;
+        }
+        ByNtRemoveProcessDebugResumeProcess(dwProcessId, hDebugObject);
+        CloseHandle(hDebugObject);
+        hDebugObject = nullptr;
+
+        break;
+    }
+    case 5: {
+        if (hJob == nullptr)
+        {
+            std::cout << "Job object is null. Please suspend process first." << std::endl;
+            break;
+        }
+        ByJobObjectUnFreeze(dwProcessId, hJob);
+        CloseHandle(hJob);
+        hJob = nullptr;
+
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+bool IsSystemProcess(DWORD processID) {
+    TCHAR processPath[MAX_PATH] = TEXT("");
+
+    if (processID < 1000) {
+        return true;
+    }
+
+    // Get a handle to the process.
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processID);
+    if (hProcess) {
+        // Get the full path of the executable file for the process.
+        if (GetModuleFileNameEx(hProcess, NULL, processPath, MAX_PATH)) {
+            // Check if the path starts with "C:\Windows\System32"
+            if (_tcsncmp(processPath, TEXT("C:\\Windows\\System32\\"), 20) == 0) {
+                CloseHandle(hProcess);
+                return true;
+            }
+
+            // Check if the path starts with "C:\Windows\SystemApps"
+            if (_tcsncmp(processPath, TEXT("C:\\Windows\\SystemApps\\"), 21) == 0) {
+                CloseHandle(hProcess);
+                return true;
+            }
+        }
+        CloseHandle(hProcess);
+    }
+    else {
+        // 无法打开这个进程，可能是因为权限不足
+        return true;
+    }
+    return false;
+}
+
+void GetThreadsByProcessHandle(HANDLE hProcess, std::vector<ThreadInfo>& threads)
+{
+    HANDLE hThread = NULL;
+    THREAD_BASIC_INFORMATION tbi;
+    NTSTATUS status = STATUS_SUCCESS;
+    while (NtGetNextThread(hProcess, hThread, THREAD_QUERY_LIMITED_INFORMATION, 0, 0, &hThread) == STATUS_SUCCESS)
+    {
+        ThreadInfo threadInfo;
+        threadInfo.ThreadId = GetThreadId(hThread);
+
+        /*UNICODE_STRING threadName;
+        status = NtQueryInformationThread(hThread, ThreadNameInformation, &threadName, sizeof(threadName), NULL);
+        if (!NT_SUCCESS(status))
+        {
+            std::cout << "QueryInformationThread failed" << std::endl;
+            break;
+        }*/
+
+        int suspendCount = 0;
+        status = NtQueryInformationThread(hThread, ThreadSuspendCount, &suspendCount, sizeof(threadInfo.SuspendCount), NULL);
+        if (!NT_SUCCESS(status))
+        {
+            std::cout << "QueryInformationThread failed" << std::endl;
+            break;
+        }
+        threadInfo.SuspendCount = suspendCount;
+
+        threads.push_back(threadInfo);
+    }
+}
+
+ProcessInfo GetProcessInfo(DWORD processId)
+{
+    ProcessInfo processInfo;
+    processInfo.ProcessId = processId;
+
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (hProcess == NULL)
+    {
+        std::cout << "OpenProcess failed" << std::endl;
+        return processInfo;
+    }
+
+    TCHAR imageName[MAX_PATH] = TEXT("");
+    if (GetProcessImageFileName(hProcess, imageName, MAX_PATH))
+    {
+        processInfo.ProcessName = imageName;
+    }
+
+    PROCESS_EXTENDED_BASIC_INFORMATION pebi;
+
+    NTSTATUS status = NtQueryInformationProcess(hProcess, ProcessBasicInformation, &pebi, sizeof(pebi), NULL);
+    if (!NT_SUCCESS(status))
+    {
+        std::cout << "QueryInformationProcess failed" << std::endl;
+        return processInfo;
+    }
+
+    processInfo.IsFreeze = pebi.IsFrozen;
+    GetThreadsByProcessHandle(hProcess, processInfo.Threads);
+
+    CloseHandle(hProcess);
+    return processInfo;
+}
+
+bool IsProcessSuspend(DWORD processId) {
+    ProcessInfo processInfo = GetProcessInfo(processId);
+    bool isSuspend = processInfo.IsFreeze;
+    std::cout << "Process id: " << processInfo.ProcessId << ", Is freeze: " << processInfo.IsFreeze << std::endl;
+    if (processInfo.Threads.size() > 0) {
+        isSuspend = true;
+    }
+    for (auto& thread : processInfo.Threads) {
+        std::cout << "Thread id: " << thread.ThreadId << ", Suspend count: " << thread.SuspendCount << std::endl;
+        if (thread.SuspendCount < 1) {
+            isSuspend = false;
+            break;
+        }
+    }
+
+    return isSuspend;
+}
+
+void ExecuteStressTesting(int methodIndex)
+{
+    HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE) {
+        std::cerr << "CreateToolhelp32Snapshot (of processes) failed: " << GetLastError() << std::endl;
+        return;
+    }
+
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    // Retrieve information about the first process
+    if (!Process32First(hProcessSnap, &pe32)) {
+        std::cerr << "Process32First failed: " << GetLastError() << std::endl; // show cause of failure
+        CloseHandle(hProcessSnap);          // clean the snapshot object
+        return;
+    }
+
+    do {
+        // 过滤掉系统进程
+        if (IsSystemProcess(pe32.th32ProcessID)) {
+            std::cout << "Skip system process: " << pe32.th32ProcessID << "-" << std::endl;
+            continue;
+        }
+
+        // 执行挂起操作
+        ExecuteSuspendProcess(pe32.th32ProcessID, methodIndex);
+
+        // 验证挂起操作是否成功
+        if (!IsProcessSuspend(pe32.th32ProcessID)) {
+            std::cerr << "[Suspend]Stress testing failed on process: " << pe32.th32ProcessID << std::endl;
+            system("pause");
+        }
+
+        std::cout << "Process suspend success, will resume process. process:" << pe32.th32ProcessID << std::endl;
+
+        // 执行恢复操作
+        ExecuteReusmeProcess(pe32.th32ProcessID, methodIndex);
+
+        // 验证恢复操作是否成功
+        if (IsProcessSuspend(pe32.th32ProcessID)) {
+            std::cerr << "[Resume]Stress testing failed on process: " << pe32.th32ProcessID << std::endl;
+            system("pause");
+        }
+    } while (Process32Next(hProcessSnap, &pe32));
+}
+
 int main()
 {
+    /*auto info = GetProcessInfo(9512);
+
+    std::cout << "Process id: " << info.ProcessId << std::endl;
+    std::wcout << "Process name: " << info.ProcessName << std::endl;
+    std::cout << "Is freeze: " << info.IsFreeze << std::endl;
+
+    for (auto thread : info.Threads)
+    {
+        std::cout << "-------------------------" << std::endl;
+        std::cout << "Thread id: " << thread.ThreadId << std::endl;
+        std::cout << "Suspend count: " << thread.SuspendCount << std::endl;
+        std::cout << "-------------------------" << std::endl;
+    }*/
+
     while (true)
     {
         DWORD dwProcessId = 0;
         int methodIndex;
+        int modeIndex;
         system("cls");
-        std::cout << "Enter process id: ";
-        std::cin >> dwProcessId;
+
+        // 测试模式选择
+        std::cout << "Please chose the test mode:" << std::endl;
+        std::cout << "1. Test by process id" << std::endl;
+        std::cout << "2. Automate Stress Testing" << std::endl;
+        std::cin >> modeIndex;
+
+        if (modeIndex == 1) {
+            std::cout << "Enter process id: ";
+            std::cin >> dwProcessId;
+        }
 
         system("cls");
         std::cout << "Please chose the method to suspend the process:" << std::endl;
@@ -371,59 +667,26 @@ int main()
         std::cout << "5. By Job Object Freeze" << std::endl;
         std::cin >> methodIndex;
 
-        switch (methodIndex)
+        switch (modeIndex)
         {
         case 1:
         {
-            ByNtSuspendProcess(dwProcessId);
-            std::cout << "Press any key to resume the process" << std::endl;
-            _getch();
-            ByNtResumeProcess(dwProcessId);
-
+            // 执行一个进程的挂起操作
+            if (dwProcessId == 0)
+            {
+                std::cout << "Invalid process id" << std::endl;
+                break;
+            }
+            ExecuteSuspendProcess(dwProcessId, methodIndex);
+            std::cout << "Process suspended, Press any key to resume." << std::endl;
+            system("pause");
+            ExecuteReusmeProcess(dwProcessId, methodIndex);
             break;
         }
         case 2:
         {
-            BySnapshotAndSuspendThread(dwProcessId);
-            std::cout << "Press any key to resume the process" << std::endl;
-            _getch();
-            BySnapshotAndResumeThread(dwProcessId);
-
-            break;
-        }
-        case 3:
-        {
-            ByNtGetNextThreadAndSuspendThread(dwProcessId);
-            std::cout << "Press any key to resume the process" << std::endl;
-            _getch();
-            ByNtGetNextThreadAndResumeThread(dwProcessId);
-
-            break;
-        }
-        case 4: {
-            HANDLE hDebugObject = ByNtCreateDebugObjectSuspendProcess(dwProcessId);
-            if (hDebugObject == nullptr)
-            {
-                break;
-            }
-            std::cout << "Press any key to resume the process" << std::endl;
-            _getch();
-            ByNtRemoveProcessDebugResumeProcess(dwProcessId, hDebugObject);
-            CloseHandle(hDebugObject);
-
-            break;
-        }
-        case 5: {
-            HANDLE hJob = ByJobObjectFreeze(dwProcessId);
-            if (hJob == nullptr)
-            {
-                break;
-            }
-            std::cout << "Press any key to resume the process" << std::endl;
-            _getch();
-            ByJobObjectUnFreeze(dwProcessId, hJob);
-            CloseHandle(hJob);
-
+            // 自动化压力测试
+            ExecuteStressTesting(methodIndex);
             break;
         }
         default:
