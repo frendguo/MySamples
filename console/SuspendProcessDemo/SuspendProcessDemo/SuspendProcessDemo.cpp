@@ -17,6 +17,7 @@
 
 HANDLE hDebugObject = nullptr;
 HANDLE hJob = nullptr;
+ULONG SuspendCount = 0;
 
 #pragma region NtSuspendProcess
 
@@ -623,14 +624,28 @@ void ExecuteStressTesting(int methodIndex)
             continue;
         }
 
+        // 如果是挂起的进程，跳过
+        if (IsProcessSuspend(pe32.th32ProcessID)) {
+            std::cout << "Skip suspend process: " << pe32.th32ProcessID << "-" << std::endl;
+            continue;
+        }
+
+        // 如果进程的线程数小于0，跳过
+        if (GetProcessInfo(pe32.th32ProcessID).Threads.size() < 0) {
+            std::cout << "Skip process with no threads: " << pe32.th32ProcessID << "-" << std::endl;
+            continue;
+        }
+
         // 执行挂起操作
         ExecuteSuspendProcess(pe32.th32ProcessID, methodIndex);
 
         // 验证挂起操作是否成功
         if (!IsProcessSuspend(pe32.th32ProcessID)) {
             std::cerr << "[Suspend]Stress testing failed on process: " << pe32.th32ProcessID << std::endl;
+            std::cout << "----Suspend count: " << SuspendCount << std::endl;
             system("pause");
         }
+        SuspendCount++;
 
         std::cout << "Process suspend success, will resume process. process:" << pe32.th32ProcessID << std::endl;
 
@@ -712,6 +727,7 @@ int main()
                 ExecuteStressTesting(methodIndex);
 
                 std::cout << "---------ready start next streess test.------------" << std::endl;
+                std::cout << "----Suspend count: " << SuspendCount << std::endl;
                 Sleep(1000);
             }
             
