@@ -499,7 +499,7 @@ void GetThreadsByProcessHandle(HANDLE hProcess, std::vector<ThreadInfo>& threads
     HANDLE hThread = NULL;
     THREAD_BASIC_INFORMATION tbi;
     NTSTATUS status = STATUS_SUCCESS;
-    while (NtGetNextThread(hProcess, hThread, THREAD_QUERY_LIMITED_INFORMATION, 0, 0, &hThread) == STATUS_SUCCESS)
+    while (NtGetNextThread(hProcess, hThread, THREAD_QUERY_LIMITED_INFORMATION | THREAD_TERMINATE, 0, 0, &hThread) == STATUS_SUCCESS)
     {
         ThreadInfo threadInfo;
         threadInfo.ThreadId = GetThreadId(hThread);
@@ -512,12 +512,26 @@ void GetThreadsByProcessHandle(HANDLE hProcess, std::vector<ThreadInfo>& threads
             break;
         }*/
 
+        ULONG isTerminated = 0;
+        ULONG retLen;
+        status = NtQueryInformationThread(hThread, ThreadIsTerminated, &isTerminated, sizeof(isTerminated), &retLen);
+        if (!NT_SUCCESS(status))
+        {
+            std::cout << "[ThreadIsTerminated]QueryInformationThread failed, thread id: " << threadInfo.ThreadId << "status: " << status << std::endl;
+            continue;
+        }
+
+        if (isTerminated)
+        {
+            continue;
+        }
+
         int suspendCount = 0;
         status = NtQueryInformationThread(hThread, ThreadSuspendCount, &suspendCount, sizeof(threadInfo.SuspendCount), NULL);
         if (!NT_SUCCESS(status))
         {
-            std::cout << "QueryInformationThread failed" << std::endl;
-            break;
+            std::cout << "[ThreadSuspendCount]QueryInformationThread failed, thread id: " << threadInfo.ThreadId << "status: " << status << std::endl;
+            continue;
         }
         threadInfo.SuspendCount = suspendCount;
 
