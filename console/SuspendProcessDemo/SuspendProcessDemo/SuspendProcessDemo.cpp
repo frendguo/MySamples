@@ -1,5 +1,6 @@
 ﻿// SuspendProcessDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
+#define PHNT_VERSION PHNT_WIN11
 
 #include <iostream>
 #include <phnt_windows.h>
@@ -13,10 +14,9 @@
 
 #pragma comment(lib, "Psapi.lib")
 
-#define PHNT_VERSION 113
-
 HANDLE hDebugObject = nullptr;
 HANDLE hJob = nullptr;
+HANDLE hProcessStateChange = nullptr;
 ULONG SuspendCount = 0;
 
 #pragma region NtSuspendProcess
@@ -366,8 +366,57 @@ void ByJobObjectUnFreeze(DWORD dwProcessId, HANDLE hObj) {
 
 #pragma region NtCreateProcessStateChange
 
-void ByProcessStateChangeFreeze(DWORD processId) {
+#define PROCESS_STATE_CHANGE_STATE (0x0001) 
+#define PROCESS_STATE_ALL_ACCESS STANDARD_RIGHTS_ALL | PROCESS_STATE_CHANGE_STATE
 
+// 此方法只在 win11 以后的版本才有
+HANDLE ByProcessStateChangeFreeze(DWORD processId) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (hProcess == NULL)
+    {
+        std::cout << "OpenProcess failed" << std::endl;
+        return nullptr;
+    }
+
+    HANDLE hProcessStateChange = nullptr;
+    NTSTATUS status = NtCreateProcessStateChange(&hProcessStateChange, PROCESS_SET_INFORMATION | PROCESS_STATE_ALL_ACCESS, nullptr, hProcess, NULL);
+    if (!NT_SUCCESS(status)) {
+        std::cout << "NtCreateProcessStateChange failed, status is : " << status << std::endl;
+        CloseHandle(hProcess);
+        return nullptr;
+    }
+
+    status = NtChangeProcessState(hProcessStateChange, hProcess, PROCESS_STATE_CHANGE_TYPE::ProcessStateChangeSuspend, NULL, 0, 0);
+    if (!NT_SUCCESS(status)) {
+        std::cout << "NtChangeProcessState failed, status is : " << status << std::endl;
+        CloseHandle(hProcessStateChange);
+        CloseHandle(hProcess);
+        return nullptr;
+    }
+
+    std::cout << "Process freeze" << std::endl;
+    CloseHandle(hProcess);
+}
+
+void ByProcessStateChangeResume(DWORD processId, HANDLE hProcessStateChange) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+    if (hProcess == NULL)
+    {
+        std::cout << "OpenProcess failed" << std::endl;
+        return;
+    }
+
+    NTSTATUS status = NtChangeProcessState(hProcessStateChange, hProcess, PROCESS_STATE_CHANGE_TYPE::ProcessStateChangeResume, NULL, 0, 0);
+    if (!NT_SUCCESS(status)) {
+        std::cout << "NtChangeProcessState failed, status is: " << status << std::endl;
+        CloseHandle(hProcessStateChange);
+        CloseHandle(hProcess);
+        return;
+    }
+
+    std::cout << "Process unfreeze" << std::endl;
+    CloseHandle(hProcessStateChange);
+    CloseHandle(hProcess);
 }
 
 #pragma endregion
@@ -400,8 +449,17 @@ void ExecuteSuspendProcess(DWORD dwProcessId, int methodIndex)
         break;
     }
     case 5: {
-        HANDLE hJob = ByJobObjectFreeze(dwProcessId);
+        hJob = ByJobObjectFreeze(dwProcessId);
         if (hJob == nullptr)
+        {
+            break;
+        }
+        break;
+    }
+    case 6:
+    {
+        hProcessStateChange = ByProcessStateChangeFreeze(dwProcessId);
+        if (hDebugObject == nullptr)
         {
             break;
         }
@@ -455,6 +513,16 @@ void ExecuteReusmeProcess(DWORD dwProcessId, int methodIndex) {
         CloseHandle(hJob);
         hJob = nullptr;
 
+        break;
+    }
+    case 6:
+    {
+        if (hProcessStateChange == nullptr)
+        {
+            std::cout << "Process state change object is null. Please suspend process first." << std::endl;
+            break;
+        }
+        ByProcessStateChangeResume(dwProcessId, hProcessStateChange);
         break;
     }
     default:
@@ -701,6 +769,7 @@ int main()
         std::cout << "3. By NtGetNextThread and SuspendThread" << std::endl;
         std::cout << "4. By Debug Object Suspend Process" << std::endl;
         std::cout << "5. By Job Object Freeze" << std::endl;
+        std::cout << "6. By Process State Change Freeze" << std::endl;
         std::cin >> methodIndex;
 
         switch (modeIndex)
