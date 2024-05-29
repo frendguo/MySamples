@@ -56,7 +56,7 @@ bool GetProcessMemoryPriority(DWORD processId, ProcessMemoryPriorityEnum& priori
 
 int main()
 {
-    DWORD processId = 21740;
+    DWORD processId = GetCurrentProcessId();
     ProcessMemoryPriorityEnum priority;
     if (GetProcessMemoryPriority(processId, priority)) {
         std::cout << "Current process memory priority: " << priority << std::endl;
