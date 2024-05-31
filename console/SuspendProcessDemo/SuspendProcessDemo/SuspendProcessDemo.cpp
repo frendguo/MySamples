@@ -194,7 +194,6 @@ void ByNtGetNextThreadAndSuspendThread(DWORD dwProcessId)
     }
 
     HANDLE hThread = NULL;
-    THREAD_BASIC_INFORMATION tbi;
     NTSTATUS status = STATUS_SUCCESS;
     while (NtGetNextThread(hProcess, hThread, THREAD_SUSPEND_RESUME, 0, 0, &hThread) == STATUS_SUCCESS)
     {
@@ -216,7 +215,6 @@ void ByNtGetNextThreadAndResumeThread(DWORD dwProcessId) {
     }
 
     HANDLE hThread = nullptr;
-    THREAD_BASIC_INFORMATION tbi;
     NTSTATUS status = STATUS_SUCCESS;
     while (NtGetNextThread(hProcess, hThread, THREAD_SUSPEND_RESUME, 0, 0, &hThread) == STATUS_SUCCESS)
     {
@@ -396,6 +394,8 @@ HANDLE ByProcessStateChangeFreeze(DWORD processId) {
 
     std::cout << "Process freeze" << std::endl;
     CloseHandle(hProcess);
+
+    return hProcessStateChange;
 }
 
 void ByProcessStateChangeResume(DWORD processId, HANDLE hProcessStateChange) {
@@ -566,7 +566,6 @@ bool IsSystemProcess(DWORD processID) {
 void GetThreadsByProcessHandle(HANDLE hProcess, std::vector<ThreadInfo>& threads)
 {
     HANDLE hThread = NULL;
-    THREAD_BASIC_INFORMATION tbi;
     NTSTATUS status = STATUS_SUCCESS;
     while (NtGetNextThread(hProcess, hThread, THREAD_QUERY_LIMITED_INFORMATION | THREAD_TERMINATE, 0, 0, &hThread) == STATUS_SUCCESS)
     {
