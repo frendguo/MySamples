@@ -87,10 +87,10 @@ int main()
 
     auto end4 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Method1 Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
-    std::cout << "Method2 Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - end).count() << "us" << std::endl;
-    std::cout << "Method3 Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - end2).count() << "us" << std::endl;
-    std::cout << "Method4 Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end4 - end3).count() << "us" << std::endl;
+    std::cout << "Method1(EnumProcesses) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
+    std::cout << "Method2(EnumProcessBySnap) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - end).count() << "us" << std::endl;
+    std::cout << "Method3(EnumProcessByQueryInformation) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - end2).count() << "us" << std::endl;
+    std::cout << "Method4(EnumProcessByNative) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end4 - end3).count() << "us" << std::endl;
 
     system("pause");
 
