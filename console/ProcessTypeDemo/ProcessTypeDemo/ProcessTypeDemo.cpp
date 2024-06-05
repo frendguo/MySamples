@@ -29,16 +29,6 @@ bool GetProcessExtendedBasicInformation(DWORD pid, PPROCESS_EXTENDED_BASIC_INFOR
     return true;
 }
 
-bool IsBackgroudProcess(DWORD pid) {
-    PROCESS_EXTENDED_BASIC_INFORMATION pebi = { 0 };
-
-    if (!GetProcessExtendedBasicInformation(pid, &pebi)) {
-        return false;
-    }
-
-    return pebi.IsBackground;
-}
-
 std::wstring GetProcessExePath(DWORD processID) {
     WCHAR exePath[MAX_PATH] = L"<unknown>";
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processID);
@@ -217,96 +207,218 @@ void EnumProcess(std::vector<DWORD>& pids) {
     }
 }
 
-void EnumProcessBySnap(std::vector<DWORD>& pids) {
-    HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hProcessSnap == INVALID_HANDLE_VALUE) {
-        std::cerr << "CreateToolhelp32Snapshot (of processes) failed: " << GetLastError() << std::endl;
-        return;
+bool IsBackgroudProcess(DWORD pid) {
+    DWORD sessionId = -1;
+
+    // subsystem 为 cui
+    if (GetProcessSubsystem(pid) == IMAGE_SUBSYSTEM_WINDOWS_CUI) {
+        std::cout << "subsystem is cui." << std::endl;
+        return true;
     }
 
-    PROCESSENTRY32 pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32);
-
-    // Retrieve information about the first process
-    if (!Process32First(hProcessSnap, &pe32)) {
-        std::cerr << "Process32First failed: " << GetLastError() << std::endl; // show cause of failure
-        CloseHandle(hProcessSnap);          // clean the snapshot object
-        return;
+    // session 为 0
+    if (ProcessIdToSessionId(pid, &sessionId) && sessionId == 0) {
+        std::cout << "session id is zero." << std::endl;
+        return true;
     }
 
-    do
+    // UWP 进程 isbackgroud
+    // TODO: UWP 本身有后台任务的限制 先忽略
+
+    // 窗口信息
+    std::vector<HWND> windows = GetProcessWindows(pid);
+    if (windows.size() < 1) {
+        std::cout << "no windows." << std::endl;
+        return true;
+    }
+
+    for (auto hwnd : windows) {
+        if (IsWindowVisible(hwnd)) {
+            std::cout << "window is visible." << std::endl;
+            return false;
+        }
+    }
+
+    std::cout << "window is invisible." << std::endl;
+}
+
+bool IsProcessSuspended(DWORD pid) {
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    if (hProcess == NULL) {
+        std::cerr << "OpenProcess failed: " << GetLastError() << std::endl;
+        return false;
+    }
+
+    PROCESS_EXTENDED_BASIC_INFORMATION pebi;
+
+    NTSTATUS status = NtQueryInformationProcess(hProcess, ProcessBasicInformation, &pebi, sizeof(pebi), NULL);
+    if (NT_SUCCESS(status) && pebi.IsFrozen)
     {
-        pids.push_back(pe32.th32ProcessID);
-    } while (Process32Next(hProcessSnap, &pe32));
+        CloseHandle(hProcess);
+        return true;
+    }
+
+    // 遍历线程
+    HANDLE hThread = nullptr;
+
+    while (NtGetNextThread(hProcess, hThread, THREAD_QUERY_LIMITED_INFORMATION | THREAD_TERMINATE, 0, 0, &hThread) == STATUS_SUCCESS) {
+        ULONG isTerminated = 0;
+        ULONG retLen;
+        status = NtQueryInformationThread(hThread, ThreadIsTerminated, &isTerminated, sizeof(isTerminated), &retLen);
+        if (NT_SUCCESS(status) && isTerminated)
+        {
+            continue;
+        }
+
+        int suspendCount = 0;
+        status = NtQueryInformationThread(hThread, ThreadSuspendCount, &suspendCount, sizeof(suspendCount), NULL);
+
+        if (NT_SUCCESS(status) && suspendCount < 1) {
+            CloseHandle(hThread);
+            CloseHandle(hProcess);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+DWORD GetActiveProcessId() {
+    auto hwnd = GetForegroundWindow();
+    if (hwnd == NULL) {
+        return -1;
+    }
+
+    DWORD processID;
+    GetWindowThreadProcessId(hwnd, &processID);
+
+    return processID;
+}
+
+enum ProcessType
+{
+    None,
+    SuspendProcess,
+    BackgroundProcess,
+    ForegroundProcess,
+    ActiveForegroundProcess,
+    InteractionProcess
+};
+
+ProcessType GetProcessType(DWORD pid) {
+    ProcessType type = ProcessType::None;
+    bool res = false;
+    // 判断进程是否被挂起
+    if (IsProcessSuspended(pid)) {
+        return ProcessType::SuspendProcess;
+    }
+
+    // 判断进程是否是后台进程
+    if (IsBackgroudProcess(pid)) {
+        return ProcessType::BackgroundProcess;
+    }
+
+    // 判断进程是否是交互进程（全局唯一）
+    DWORD activePid = GetActiveProcessId();
+    if (activePid == pid) {
+        return ProcessType::ActiveForegroundProcess;
+    }
+
+    // 判断进程是否是前台活跃进程
+    // TODO：这里得依赖 CPU time，就得有实时监控
+
+    return ProcessType::ForegroundProcess;
+}
+
+void ProcessTypeTestByPid() {
+    std::cout << "Please enter the PID of the process you want to check: " << std::endl;
+    DWORD pid;
+    std::cin >> pid;
+
+    auto start = std::chrono::high_resolution_clock::now();
+    ProcessType type = GetProcessType(pid);
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    switch (type)
+    {
+    case ProcessType::SuspendProcess:
+        std::cout << "The process is suspended." << std::endl;
+        break;
+    case ProcessType::BackgroundProcess:
+        std::cout << "The process is background process." << std::endl;
+        break;
+    case ProcessType::ForegroundProcess:
+        std::cout << "The process is foreground process." << std::endl;
+        break;
+    case ProcessType::ActiveForegroundProcess:
+        std::cout << "The process is active foreground process." << std::endl;
+        break;
+    default:
+        std::cout << "The process is unknow." << std::endl;
+        break;
+    }
+
+    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
+}
+
+void AllProcessTypeInSystem() {
+    std::vector<DWORD> pids;
+    auto start = std::chrono::high_resolution_clock::now();
+    EnumProcess(pids);
+
+    for (auto pid : pids) {
+        ProcessType type = GetProcessType(pid);
+        std::wcout << L"PID: " << pid << L" Type: ";
+        switch (type)
+        {
+        case ProcessType::SuspendProcess:
+            std::wcout << L"SuspendProcess" << std::endl;
+            break;
+        case ProcessType::BackgroundProcess:
+            std::wcout << L"BackgroundProcess" << std::endl;
+            break;
+        case ProcessType::ForegroundProcess:
+            std::wcout << L"ForegroundProcess" << std::endl;
+            break;
+        case ProcessType::ActiveForegroundProcess:
+            std::wcout << L"ActiveForegroundProcess" << std::endl;
+            break;
+        default:
+            std::wcout << L"Unknown" << std::endl;
+            break;
+        }
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::cout << "cout: " << pids.size() << std::endl;
+    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
 }
 
 int main()
 {
-    /*std::cout << "Please enter the PID of the process you want to check: " << std::endl;
-    DWORD pid;
-    std::cin >> pid;*/
-    std::vector<DWORD> pids;
-    std::vector<DWORD> pids2;
+    while (true)
+    {
+        system("cls");
 
-    auto start = std::chrono::high_resolution_clock::now();
+        std::cout << "Please chose the mode you want to use: " << std::endl;
+        std::cout << "1. Get process type by pid." << std::endl;
+        std::cout << "2. Get all process type in system." << std::endl;
+        int mode;
+        std::cin >> mode;
 
-    EnumProcess(pids);
+        switch (mode)
+        {
+        case 1:
+            ProcessTypeTestByPid();
+            break;
+        case 2:
+            AllProcessTypeInSystem();
+            break;
+        }
 
-    auto end = std::chrono::high_resolution_clock::now();
-
-    EnumProcessBySnap(pids2);
-
-    auto end2 = std::chrono::high_resolution_clock::now();
-
-    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
-    std::cout << "Time2: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - end).count() << "us" << std::endl;
-
-    //std::vector<std::wstring> hasWindowprocess;
-    //
-
-    //HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    //if (hProcessSnap == INVALID_HANDLE_VALUE) {
-    //    std::cerr << "CreateToolhelp32Snapshot (of processes) failed: " << GetLastError() << std::endl;
-    //    return 1;
-    //}
-
-    //PROCESSENTRY32 pe32;
-    //pe32.dwSize = sizeof(PROCESSENTRY32);
-
-    //// Retrieve information about the first process
-    //if (!Process32First(hProcessSnap, &pe32)) {
-    //    std::cerr << "Process32First failed: " << GetLastError() << std::endl; // show cause of failure
-    //    CloseHandle(hProcessSnap);          // clean the snapshot object
-    //    return 1;
-    //}
-
-    //do
-    //{
-    //    // std::cout << "ProcessID: " << pe32.th32ProcessID << "IsBackground: " << IsBackgroudProcess(pe32.th32ProcessID) << std::endl;
-    //    std::wstring processName = GetProcessName(pe32.th32ProcessID);
-    //    if (processName == L"<unknown>") {
-    //        continue;
-    //    }
-    //    std::wcout << "Processname: " << processName << ";Subsystem: " << ConvertToSubsystemName(GetProcessSubsystem(pe32.th32ProcessID)) << std::endl;
-
-    //    auto windows = GetProcessWindows(pe32.th32ProcessID);
-    //    if (windows.size() < 1) {
-    //        continue;
-    //    }
-
-    //    hasWindowprocess.push_back(processName);
-    //    std::wcout << "Windows: " << std::endl;
-    //    for (auto hwnd : windows) {
-    //        std::wcout << "  Title: " << GetWindowTitle(hwnd) << ";State: " << GetWindowState(hwnd) << std::endl;
-    //    }
-
-    //} while (Process32Next(hProcessSnap, &pe32));
-
-    //std::wcout << "Processes with windows: " << std::endl;
-    //for (std::wstring p : hasWindowprocess) {
-    //    std::wcout << "1111-" << p << std::endl;
-    //}
-
-    system("pause");
+        system("pause");
+    }
     return 0;
 }
