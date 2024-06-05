@@ -9,6 +9,7 @@
 #include <psapi.h>
 #include <vector>
 #include <chrono>
+#include <map>
 
 bool GetProcessExtendedBasicInformation(DWORD pid, PPROCESS_EXTENDED_BASIC_INFORMATION ppebi) {
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
@@ -207,6 +208,8 @@ void EnumProcess(std::vector<DWORD>& pids) {
     }
 }
 
+#define MIN_WINDOW_WIDTH    200
+#define MIN_WINDOW_HEIGHT   200
 bool IsBackgroudProcess(DWORD pid) {
     DWORD sessionId = -1;
 
@@ -232,14 +235,28 @@ bool IsBackgroudProcess(DWORD pid) {
         return true;
     }
 
+    // 如果所有窗口都不可见，或者大小都小于最小值，是后台进程
     for (auto hwnd : windows) {
-        if (IsWindowVisible(hwnd)) {
-            std::cout << "window is visible." << std::endl;
+        // 如果不可见，继续下一个窗口
+        if (!IsWindowVisible(hwnd)) {
+            continue;
+        }
+        // 如果可见，判断窗口的大小
+        RECT rect;
+        if (!GetWindowRect(hwnd, &rect)) {
+            continue;
+        }
+
+        // 如果窗口大小大于最小值，不是后台进程
+        auto width = std::abs(rect.right - rect.left);
+        auto height = std::abs(rect.top - rect.bottom);
+        if (width > MIN_WINDOW_WIDTH || height > MIN_WINDOW_HEIGHT) {
+            std::cout << "window is visible. window size is: " << width << "*" << height << std::endl;
             return false;
         }
     }
-
-    std::cout << "window is invisible." << std::endl;
+    
+    return true;
 }
 
 bool IsProcessSuspended(DWORD pid) {
@@ -273,11 +290,15 @@ bool IsProcessSuspended(DWORD pid) {
         int suspendCount = 0;
         status = NtQueryInformationThread(hThread, ThreadSuspendCount, &suspendCount, sizeof(suspendCount), NULL);
 
-        if (NT_SUCCESS(status) && suspendCount < 1) {
+        if (!NT_SUCCESS(status) || suspendCount < 1) {
             CloseHandle(hThread);
             CloseHandle(hProcess);
             return false;
         }
+    }
+
+    if (hThread == nullptr) {
+        return false;
     }
 
     return true;
@@ -321,7 +342,7 @@ ProcessType GetProcessType(DWORD pid) {
     // 判断进程是否是交互进程（全局唯一）
     DWORD activePid = GetActiveProcessId();
     if (activePid == pid) {
-        return ProcessType::ActiveForegroundProcess;
+        return ProcessType::InteractionProcess;
     }
 
     // 判断进程是否是前台活跃进程
@@ -367,30 +388,41 @@ void AllProcessTypeInSystem() {
     auto start = std::chrono::high_resolution_clock::now();
     EnumProcess(pids);
 
+    std::map<int, ProcessType> processTypes;
+
     for (auto pid : pids) {
         ProcessType type = GetProcessType(pid);
-        std::wcout << L"PID: " << pid << L" Type: ";
+
+        processTypes.insert(std::make_pair(pid, type));
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::cout << "-------------------------------------------" << std::endl;
+
+    for (auto& [pid, type] : processTypes) {
+        std::wstring processName = GetProcessName(pid);
+        std::wcout << "PID: " << pid << " Name: " << processName << " Type: ";
+        
         switch (type)
         {
         case ProcessType::SuspendProcess:
-            std::wcout << L"SuspendProcess" << std::endl;
+            std::cout << "SuspendProcess";
             break;
         case ProcessType::BackgroundProcess:
-            std::wcout << L"BackgroundProcess" << std::endl;
+            std::cout << "BackgroundProcess";
             break;
         case ProcessType::ForegroundProcess:
-            std::wcout << L"ForegroundProcess" << std::endl;
+            std::cout << "ForegroundProcess";
             break;
         case ProcessType::ActiveForegroundProcess:
-            std::wcout << L"ActiveForegroundProcess" << std::endl;
+            std::cout << "ActiveForegroundProcess";
             break;
         default:
-            std::wcout << L"Unknown" << std::endl;
+            std::cout << "Unknown";
             break;
         }
+        std::cout << std::endl;
     }
-
-    auto end = std::chrono::high_resolution_clock::now();
 
     std::cout << "cout: " << pids.size() << std::endl;
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
