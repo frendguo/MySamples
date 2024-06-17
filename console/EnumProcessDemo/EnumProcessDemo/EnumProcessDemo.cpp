@@ -1,4 +1,4 @@
-// EnumProcessDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
+﻿// EnumProcessDemo.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
 #include <iostream>
@@ -8,11 +8,14 @@
 #include <tlhelp32.h>
 #include <chrono>
 #include <psapi.h>
+#include <map>
+
+std::map<DWORD, PSYSTEM_PROCESS_INFORMATION> infos;
 
 void EnumProcess(std::vector<DWORD>& pids) {
     HANDLE hProcess = nullptr;
     HANDLE nextProcess = NULL;
-    while (NT_SUCCESS(NtGetNextProcess(hProcess, PROCESS_QUERY_INFORMATION, 0, 0, &nextProcess))) {
+    while (NT_SUCCESS(NtGetNextProcess(hProcess, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, 0, &nextProcess))) {
         auto pid = GetProcessId(nextProcess);
         pids.push_back(pid);
         hProcess = nextProcess;
@@ -57,6 +60,7 @@ void EnumProcessByQueryInformation(std::vector<DWORD>& pids) {
     while (pInfo->NextEntryOffset)
     {
         pids.push_back(HandleToULong(pInfo->UniqueProcessId));
+        infos.emplace(HandleToULong(pInfo->UniqueProcessId), pInfo);
 
         pInfo = (PSYSTEM_PROCESS_INFORMATION)(((PUCHAR)pInfo) + pInfo->NextEntryOffset);
     }
@@ -87,10 +91,38 @@ int main()
 
     auto end4 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Method1(EnumProcesses) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
-    std::cout << "Method2(EnumProcessBySnap) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - end).count() << "us" << std::endl;
-    std::cout << "Method3(EnumProcessByQueryInformation) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - end2).count() << "us" << std::endl;
-    std::cout << "Method4(EnumProcessByNative) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end4 - end3).count() << "us" << std::endl;
+    std::wcout << "Method1(EnumProcesses) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "us" << std::endl;
+    std::wcout << "Method2(EnumProcessBySnap) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end2 - end).count() << "us" << std::endl;
+    std::wcout << "Method3(EnumProcessByQueryInformation) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end3 - end2).count() << "us" << std::endl;
+    std::wcout << "Method4(EnumProcessByNative) Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end4 - end3).count() << "us" << std::endl;
+
+    int i = 0;
+    // 对比 pid2 和 pid3 的差异
+    for (int j = 0; j < pids2.size(); j++)
+    {
+        try
+        {
+            auto pid = pids2[j];
+            std::wcout << "------Index:" << j << std::endl;
+            if (std::find(pids3.begin(), pids3.end(), pid) == pids3.end())
+            {
+                auto info = infos[pid];
+                std::wstring name = std::wstring(info->ImageName.Buffer, info->ImageName.Length);
+                std::wcout << "name " << name << " not found in pid3" << std::endl;
+            }
+            else {
+                std::wcerr << "pid " << pid << " found in pid3" << std::endl;
+                auto info = infos[pid];
+                std::wstring name = std::wstring(info->ImageName.Buffer, info->ImageName.Length);
+                std::wcout << "name " << name << " found in pid3" << std::endl;
+            }
+        }
+        catch (const std::exception&)
+        {
+            std::wcout << "error" << std::endl;
+        }
+        
+    }
 
     system("pause");
 
